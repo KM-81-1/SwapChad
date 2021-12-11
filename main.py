@@ -10,13 +10,13 @@ async def landing_page(_request):
     return web.Response(text="Hello World!!!")
 
 
-def main():
+async def create_app():
     app = web.Application()
     app.add_routes(routes)
-    web.run_app(app,
-                host=getenv("HOST", "127.0.0.1"),
-                port=getenv("PORT", 80))
+    return app
 
 
 if __name__ == '__main__':
-    main()
+    web.run_app(create_app(),
+                host=getenv("HOST", "127.0.0.1"),
+                port=getenv("PORT", 80))
