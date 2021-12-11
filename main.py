@@ -2,6 +2,7 @@ from os import getenv
 
 from aiohttp import web
 
+# routes class
 routes = web.RouteTableDef()
 
 
