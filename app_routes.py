@@ -78,7 +78,8 @@ async def delete(request):
             user = (await session.execute(select(db.User).filter_by(user_id=user_id))).scalar_one()
         except NoResultFound:
             raise web.HTTPUnprocessableEntity
-        session.delete(user)
+        await session.delete(user)
+        await session.commit()
         
     return web.json_response({"status": "deleted"})
     

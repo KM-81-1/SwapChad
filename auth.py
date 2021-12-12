@@ -3,8 +3,7 @@ import uuid
 import aiohttp.web
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
-from werkzeug.security import generate_password_hash
-
+    
 import db
 
 
@@ -28,8 +27,9 @@ class Auth:
             raise Auth.UsernameIsTakenError()
 
         # If yes, create new user
-        new_user = db.User(username=username,
-                           password=generate_password_hash(password),
+        new_user = db.User(user_id=uuid.uuid4(),
+                           username=username,
+                           password=password,
                            displayed_name=displayed_name)
         session.add(new_user)
         await session.commit()
@@ -42,8 +42,10 @@ class Auth:
         """ Generates login JWT Bearer token"""
         # Do the credentials match?
         try:
-            user = (await session.execute(select(db.User).filter_by(username=username, password=generate_password_hash(password)))).scalar_one()
+            user = (await session.execute(select(db.User).filter_by(username=username))).scalar_one()
         except NoResultFound:
+            raise Auth.WrongCredentials()
+        if password != user.password:
             raise Auth.WrongCredentials()
 
         # If yes, encode user_id into JWT token and send it to the client
@@ -69,7 +71,7 @@ def authorize(handler):
         try:
             jwt_token = request.headers["Authorization"].split()[1]
             user_id = Auth.verify(jwt_token)
-        except (KeyError, IndexError, Auth.InvalidToken) as exc:
+        except (KeyError, IndexError, Auth.InvalidToken):
             raise aiohttp.web.HTTPUnauthorized
         request["user_id"] = user_id
         return await handler(request)
