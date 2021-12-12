@@ -32,7 +32,7 @@ async def signup(request):
     # Registering user
     try:
         session = db.get_session(request)
-        async with session.begin():
+        async with session:
             token = await Auth.signup(session, username, password, displayed_name=user_info["displayed_name"])
     except Auth.UsernameIsTakenError:
         raise web.HTTPUnprocessableEntity
@@ -54,7 +54,7 @@ async def login(request):
     # Logging user in
     try:
         session = db.get_session(request)
-        async with session.begin():
+        async with session:
             token = await Auth.login(session, username, password)
     except Auth.WrongCredentials:
         raise web.HTTPUnauthorized
@@ -136,7 +136,7 @@ async def modify_profile(request):
 
     # Changing profile data
     session = db.get_session(request)
-    async with session.begin():
+    async with session:
         user = (await session.execute(select(db.User).filter_by(user_id=user_id))).scalar_one()
         user.displayed_name = displayed_name
         await session.commit()
@@ -155,7 +155,7 @@ async def get_profile(request):
 
     # Getting profile data of user with id = user_id
     session = db.get_session(request)
-    async with session.begin():
+    async with session:
         try:
             user = (await session.execute(select(db.User).filter_by(user_id=user_id))).scalar_one()
             displayed_name = user.displayed_name
