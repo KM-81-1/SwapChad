@@ -1,0 +1,7 @@
+ {
+  "name": "SwapChad",
+  "description": "Anonymous chat with instant companion swapping",
+  "repository": "https://github.com/KM-81-1/SwapChad",
+  "success_url": "/",
+  "addons": ["heroku-postgresql:hobby-dev", "papertrail"]
+}
