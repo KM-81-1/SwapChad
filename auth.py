@@ -1,8 +1,9 @@
+import jwt
 import uuid
 import aiohttp.web
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
-import jwt
+from werkzeug.security import generate_password_hash
 
 import db
 
@@ -28,7 +29,7 @@ class Auth:
 
         # If yes, create new user
         new_user = db.User(username=username,
-                           password=password,
+                           password=generate_password_hash(password),
                            displayed_name=displayed_name)
         session.add(new_user)
         await session.commit()
@@ -41,7 +42,7 @@ class Auth:
         """ Generates login JWT Bearer token"""
         # Do the credentials match?
         try:
-            user = (await session.execute(select(db.User).filter_by(username=username, password=password))).scalar_one()
+            user = (await session.execute(select(db.User).filter_by(username=username, password=generate_password_hash(password)))).scalar_one()
         except NoResultFound:
             raise Auth.WrongCredentials()
 

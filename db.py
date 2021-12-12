@@ -13,7 +13,7 @@ class User(Base):
     __tablename__ = "user"
     user_id = sa.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4())
     username = sa.Column(sa.String, primary_key=True)
-    password = sa.Column(sa.String, nullable=False)
+    password = sa.Column(sa.String(128), nullable=False)
     displayed_name = sa.Column(sa.String, nullable=True)
 
 
