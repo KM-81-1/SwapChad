@@ -1,12 +1,12 @@
+import uuid
+
 from aiohttp import web
-import aiohttp
 from auth import Auth, authorize
 from json import JSONDecodeError
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
 
 import db
-
 
 # routes class
 routes = web.RouteTableDef()
@@ -17,7 +17,7 @@ async def landing_page(_request):
     return web.Response(text="Hello World!!!")
 
 
-@routes.post('/signup')
+@routes.post('/auth/signup')
 async def signup(request):
     # Obtaining registration information from the request
     try:
@@ -41,7 +41,7 @@ async def signup(request):
     return web.json_response({'token': token})
 
 
-@routes.post('/login')
+@routes.post('/auth/login')
 async def login(request):
     # Obtaining login information from the request
     try:
@@ -70,33 +70,38 @@ async def modify_profile(request):
     try:
         data = await request.json()
         displayed_name = data['displayed_name']
-        user_id        = request['user_id']
+        user_id = request['user_id']
         print(user_id)
     except (JSONDecodeError, KeyError):
         raise web.HTTPBadRequest
-    
+
     # Changing profile data
     session = db.get_session(request)
     async with session.begin():
         user = (await session.execute(select(db.User).filter_by(user_id=user_id))).scalar_one()
         user.displayed_name = displayed_name
         await session.commit()
-    
+
     return web.Response()
 
 
-@routes.post('/profile/get/{user_id}')
-async def modify_profile(request):
+@routes.get('/profile/get/{user_id}')
+async def get_profile(request):
     # Get user_id from url
     user_id = request.match_info['user_id']
-        
+    try:
+        user_id = uuid.UUID(user_id)
+    except ValueError:
+        raise web.HTTPBadRequest
+
     # Getting profile data of user with id = user_id
     session = db.get_session(request)
     async with session.begin():
         try:
             user = (await session.execute(select(db.User).filter_by(user_id=user_id))).scalar_one()
+            displayed_name = user.displayed_name
         except NoResultFound:
             raise web.HTTPNotFound()
 
     # Return profile data
-    return web.json_response({'displayed_name': user.displayed_name})
+    return web.json_response({'displayed_name': displayed_name})
