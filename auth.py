@@ -31,6 +31,7 @@ class Auth:
                            password=password,
                            displayed_name=displayed_name)
         session.add(new_user)
+        await session.commit()
 
         # And perform login
         return await Auth.login(session, username, password)

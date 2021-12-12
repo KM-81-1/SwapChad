@@ -1,6 +1,9 @@
 from aiohttp import web
+import aiohttp
 from auth import Auth, authorize
 from json import JSONDecodeError
+from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
 
 import db
 
@@ -63,6 +66,37 @@ async def login(request):
 @routes.post('/profile/modify')
 @authorize
 async def modify_profile(request):
-    data = await request.json()
-    print("Request from the user %s, authorized via token" % request["user_id"])
-    return web.json_response("Authorized")
+    # Obtaining profile information from the request
+    try:
+        data = await request.json()
+        displayed_name = data['displayed_name']
+        user_id        = request['user_id']
+        print(user_id)
+    except (JSONDecodeError, KeyError):
+        raise web.HTTPBadRequest
+    
+    # Changing profile data
+    session = db.get_session(request)
+    async with session.begin():
+        user = (await session.execute(select(db.User).filter_by(user_id=user_id))).scalar_one()
+        user.displayed_name = displayed_name
+        await session.commit()
+    
+    return web.Response()
+
+
+@routes.post('/profile/get/{user_id}')
+async def modify_profile(request):
+    # Get user_id from url
+    user_id = request.match_info['user_id']
+        
+    # Getting profile data of user with id = user_id
+    session = db.get_session(request)
+    async with session.begin():
+        try:
+            user = (await session.execute(select(db.User).filter_by(user_id=user_id))).scalar_one()
+        except NoResultFound:
+            raise web.HTTPNotFound()
+
+    # Return profile data
+    return web.json_response({'displayed_name': user.displayed_name})
