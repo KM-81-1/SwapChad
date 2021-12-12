@@ -28,11 +28,11 @@ class Auth:
             raise Auth.UsernameIsTakenError()
 
         # If yes, create new user
+        password = generate_password_hash(password)
         new_user = db.User(username=username,
-                           password=generate_password_hash(password),
+                           password=password,
                            displayed_name=displayed_name)
         session.add(new_user)
-        await session.commit()
 
         # And perform login
         return await Auth.login(session, username, password)
@@ -42,7 +42,7 @@ class Auth:
         """ Generates login JWT Bearer token"""
         # Do the credentials match?
         try:
-            user = (await session.execute(select(db.User).filter_by(username=username, password=generate_password_hash(password)))).scalar_one()
+            user = (await session.execute(select(db.User).filter_by(username=username, password=password))).scalar_one()
         except NoResultFound:
             raise Auth.WrongCredentials()
 
