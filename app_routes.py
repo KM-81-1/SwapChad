@@ -63,6 +63,18 @@ async def login(request):
     return web.json_response({'token': token})
 
 
+@routes.delete('/profile/delete')
+@authorize
+async def delete(request):
+    # Obtaining login information from the request
+    try:
+        user_id = request['user_id']
+    except (JSONDecodeError, KeyError):
+        raise web.HTTPBadRequest
+    
+    
+
+
 @routes.post('/profile/modify')
 @authorize
 async def modify_profile(request):
