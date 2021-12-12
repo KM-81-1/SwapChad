@@ -1,5 +1,4 @@
 from os import environ, getenv
-import aiohttp.web
 from aiohttp import web
 
 import db

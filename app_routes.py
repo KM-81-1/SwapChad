@@ -53,8 +53,8 @@ async def login(request):
         session = db.get_session(request)
         async with session.begin():
             token = await Auth.login(session, username, password)
-    except Auth.UsernameIsTakenError:
-        raise web.HTTPBadRequest
+    except Auth.WrongCredentials:
+        raise web.HTTPUnauthorized
 
     # Sending JWT Bearer token to the user
     return web.json_response({'token': token})
