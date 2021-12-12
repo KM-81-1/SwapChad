@@ -1,5 +1,6 @@
 from aiohttp import web
 from auth import Auth, authorize
+from json import JSONDecodeError
 
 import db
 
@@ -15,15 +16,14 @@ async def landing_page(_request):
 
 @routes.post('/signup')
 async def signup(request):
-    data = await request.json()
-
     # Obtaining registration information from the request
     try:
+        data = await request.json()
         user_info = data["user_info"]
         credentials = data["credentials"]
         username = credentials["username"]
         password = credentials["password"]
-    except KeyError:
+    except (JSONDecodeError, KeyError):
         raise web.HTTPBadRequest
 
     # Registering user
@@ -40,13 +40,12 @@ async def signup(request):
 
 @routes.post('/login')
 async def login(request):
-    data = await request.json()
-
     # Obtaining login information from the request
     try:
+        data = await request.json()
         username = data["username"]
         password = data["password"]
-    except KeyError:
+    except (JSONDecodeError, KeyError):
         raise web.HTTPBadRequest
 
     # Logging user in
