@@ -1,12 +1,12 @@
-import uuid
-
 from aiohttp import web
 from auth import Auth, authorize
 from json import JSONDecodeError
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
+import uuid
 
 import db
+from chat import Chats
 
 # routes class
 routes = web.RouteTableDef()
@@ -61,6 +61,65 @@ async def login(request):
 
     # Sending JWT Bearer token to the user
     return web.json_response({'token': token})
+
+
+@routes.get('/chat/find')
+@authorize
+async def find_chat(request):
+    user_id = request["user_id"]
+    chat_id = await request.app["lobby"].find_chat(user_id)
+    chat_id = chat_id.hex
+    return web.json_response({"chat_id": chat_id})
+
+
+@routes.get('/chat/abort-search')
+@authorize
+async def abort_search(request):
+    user_id = request["user_id"]
+    request.app["lobby"].abort_search(user_id)
+
+
+@routes.get('/chat/{chat_id}')
+@authorize
+async def connect_to_chat(request):
+    user_id = request["user_id"]
+
+    # Obtaining chat instance
+    chat_id = request.match_info["chat_id"]
+
+    try:
+        chat_id = uuid.UUID(chat_id)
+    except ValueError:
+        raise web.HTTPBadRequest
+
+    try:
+        chat = request.app["chats"].find_chat(chat_id)
+    except Chats.ChatNotFoundError:
+        raise web.HTTPNotFound
+
+    # Upgrade connection to websocket
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    # Start chatting
+    await chat.connect(user_id, ws)
+
+    # Exit from chat
+    await request.app["chats"].stop(chat_id)
+
+
+@routes.get('/chat/exit/{chat_id}')
+@authorize
+async def exit_from_chat(request):
+    # Obtaining chat instance
+    chat_id = request.match_info["chat_id"]
+
+    try:
+        chat_id = uuid.UUID(chat_id)
+    except ValueError:
+        raise web.HTTPBadRequest
+
+    await request.app["chats"].stop(chat_id)
 
 
 @routes.post('/profile/modify')
