@@ -72,7 +72,7 @@ async def find_chat(request):
     return web.json_response({"chat_id": chat_id})
 
 
-@routes.get('/chat/abort-search')
+@routes.post('/chat/abort-search')
 @authorize
 async def abort_search(request):
     user_id = request["user_id"]
@@ -108,7 +108,7 @@ async def connect_to_chat(request):
     await request.app["chats"].stop(chat_id)
 
 
-@routes.get('/chat/exit/{chat_id}')
+@routes.post('/chat/{chat_id}/exit')
 @authorize
 async def exit_from_chat(request):
     # Obtaining chat instance
@@ -120,6 +120,24 @@ async def exit_from_chat(request):
         raise web.HTTPBadRequest
 
     await request.app["chats"].stop(chat_id)
+
+
+@routes.get('/users/{username}')
+async def get_profile(request):
+    # Get username from url
+    username = request.match_info['username']
+
+    # Getting profile data
+    session = db.get_session(request)
+    async with session:
+        try:
+            user = (await session.execute(select(db.User).filter_by(username=username))).scalar_one()
+            displayed_name = user.displayed_name
+        except NoResultFound:
+            raise web.HTTPNotFound()
+
+    # Return profile data
+    return web.json_response({'displayed_name': displayed_name})
 
 
 @routes.post('/profile/modify')
@@ -142,21 +160,3 @@ async def modify_profile(request):
         await session.commit()
 
     return web.Response()
-
-
-@routes.get('/profile/get/{username}')
-async def get_profile(request):
-    # Get username from url
-    username = request.match_info['username']
-
-    # Getting profile data
-    session = db.get_session(request)
-    async with session:
-        try:
-            user = (await session.execute(select(db.User).filter_by(username=username))).scalar_one()
-            displayed_name = user.displayed_name
-        except NoResultFound:
-            raise web.HTTPNotFound()
-
-    # Return profile data
-    return web.json_response({'displayed_name': displayed_name})
