@@ -144,20 +144,16 @@ async def modify_profile(request):
     return web.Response()
 
 
-@routes.get('/profile/get/{user_id}')
+@routes.get('/profile/get/{username}')
 async def get_profile(request):
-    # Get user_id from url
-    user_id = request.match_info['user_id']
-    try:
-        user_id = uuid.UUID(user_id)
-    except ValueError:
-        raise web.HTTPBadRequest
+    # Get username from url
+    username = request.match_info['username']
 
-    # Getting profile data of user with id = user_id
+    # Getting profile data
     session = db.get_session(request)
     async with session:
         try:
-            user = (await session.execute(select(db.User).filter_by(user_id=user_id))).scalar_one()
+            user = (await session.execute(select(db.User).filter_by(username=username))).scalar_one()
             displayed_name = user.displayed_name
         except NoResultFound:
             raise web.HTTPNotFound()
