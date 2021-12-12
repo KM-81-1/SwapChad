@@ -69,7 +69,7 @@ def authorize(handler):
         try:
             jwt_token = request.headers["Authorization"].split()[1]
             user_id = Auth.verify(jwt_token)
-        except (KeyError, IndexError, Auth.InvalidToken) as exc:
+        except (KeyError, IndexError, Auth.InvalidToken):
             raise aiohttp.web.HTTPUnauthorized
         request["user_id"] = user_id
         return await handler(request)
