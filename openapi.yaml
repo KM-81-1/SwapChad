@@ -214,7 +214,7 @@ paths:
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
 
-    post:
+    put:
       description: Изменить публичные & приватные данные пользователя
       operationId: modifyAllUserInfo
       tags: [ "all user info" ]
