@@ -1,6 +1,6 @@
 import jwt
 import uuid
-import aiohttp.web
+from rororo.openapi import BasicSecurityError
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
     
@@ -65,14 +65,19 @@ class Auth:
         return user_id
 
 
-def authorize(handler):
-    """ Wrapper for request handlers, processes JWS Bearer token and adds user_id to the request dict """
+def jwt_auth(handler):
+    """ Wrapper for request handlers, validates JWS Bearer token and adds extracted user_id to the request dict """
     async def wrapper(request):
         try:
             jwt_token = request.headers["Authorization"].split()[1]
+        except (KeyError, IndexError):
+            raise BasicSecurityError(message="Missing JWT token")
+
+        try:
             user_id = Auth.verify(jwt_token)
-        except (KeyError, IndexError, Auth.InvalidToken):
-            raise aiohttp.web.HTTPUnauthorized
+        except Auth.InvalidToken:
+            raise BasicSecurityError(message="Invalid JWT token")
+
         request["user_id"] = user_id
         return await handler(request)
     return wrapper

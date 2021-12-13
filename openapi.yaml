@@ -1,0 +1,265 @@
+openapi: 3.0.0
+info:
+  description: API, с которым работает пользователь
+  version: 0.0.1
+  title: UserAPI
+servers:
+  - description: User API
+    url: /api
+paths:
+  /auth/signup:
+    post:
+      description: Зарегистрироваться
+      operationId: signUp
+      tags: ["authentication"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: Регистрационные данные
+              type: object
+              properties:
+                user_info:
+                  $ref: '#/components/schemas/UserInfo'
+                credentials:
+                  $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: Успешная регистрация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWToken'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '409':
+          description: Юзернейм занят
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+  /auth/login:
+    post:
+      description: Войти
+      operationId: logIn
+      tags: ["authentication"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWToken'
+        '401':
+          description: Реквизиты входа неверны
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+  /chats/start-search:
+    post:
+      description: Поиск чатов
+      operationId: findChat
+      tags: ["chats"]
+      security:
+        - jwtAuth: []
+      responses:
+        '200':
+          description: Чат подобран
+          content:
+            application/json:
+              schema:
+                description: Данные о подобранном чате
+                type: object
+                properties:
+                  chat_id:
+                    description: Id чата
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+  /chats/abort-search:
+    post:
+      description: Остановка поиска чатов
+      operationId: abortSearch
+      tags: ["chats"]
+      security:
+        - jwtAuth: []
+      responses:
+        '200':
+          description: Поиск чатов остановлен
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+  /chats/{chat_id}:
+    get:
+      description: Остановка поиска чатов
+      operationId: joinChat
+      tags: [ "chats" ]
+      parameters:
+        - description: Id чата
+          name: chat_id
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - jwtAuth: [ ]
+      responses:
+        '200':
+          description: Поиск чатов остановлен
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+#  /chat/a:
+#    get:
+#      description: Подключение к чату
+#      operationId: joinChat
+#      tags: ["chats"]
+#      parameters:
+#        - description: Id чата
+#          name: chat_id
+#          in: path
+#          required: true
+#          schema:
+#            type: string
+#      security:
+#        - jwtAuth: []
+#      responses:
+#        '200':
+#          description: Чат завершён
+#        '401':
+#          $ref: '#/components/responses/UnauthorizedError'
+#        '404':
+#          $ref: '#/components/responses/ChatNotFound'
+#        '405':
+#          $ref: '#/components/responses/MethodNotAllowed'
+#        '422':
+#          $ref: '#/components/responses/IncorrectRequest'
+  /chat/{chat_id}/leave:
+    post:
+      description: Выход из чата
+      operationId: leaveChat
+      tags: ["chats"]
+      parameters:
+        - description: Id чата
+          name: chat_id
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - jwtAuth: []
+      responses:
+        '200':
+          description: Чат прекращён
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+  /users/{username}:
+    get:
+      description: Получить данные профиля
+      operationId: getProfile
+      tags: ["profiles"]
+      parameters:
+        - description: Юзернейм пользователя
+          name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Успешное получение данных профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+  /profile/modify:
+    post:
+      description: Изменить данные профиля
+      operationId: modifyProfile
+      tags: [ "profiles" ]
+      security:
+        - jwtAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInfo'
+      responses:
+        '200':
+          description: Успешное изменение профиля
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+components:
+  schemas:
+    Credentials:
+      description: Учётные данные для входа
+      type: object
+      properties:
+        username:
+          description: Логин
+          type: string
+          example: john_doe
+        password:
+          description: Пароль
+          type: string
+          example: john123
+    JWToken:
+      description: JWT-token
+      type: object
+      properties:
+        token:
+          description: Токен
+          type: string
+    UserInfo:
+      description: Информация о пользователе
+      type: object
+      properties:
+        displayed_name:
+          description: Отображаемое имя пользователя
+          type: string
+          example: John Doe
+
+  responses:
+    MethodNotAllowed:
+      description: HTTP-метод не поддерживается
+    IncorrectRequest:
+      description: Некорректный запрос
+    UserNotFound:
+      description: Пользователь не найден
+    ChatNotFound:
+      description: Чат не найден
+    UnauthorizedError:
+      description: Токен доступа отсутствует или неверен
+
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
