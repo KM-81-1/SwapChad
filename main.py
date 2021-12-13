@@ -3,6 +3,7 @@ from os import getenv
 from aiohttp import web
 import aiohttp_swagger
 import rororo
+import logging
 
 import db
 from chat import Lobby, Chats
@@ -19,6 +20,9 @@ async def create_components(app):
 
 async def create_app():
     app = web.Application()
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("asyncio.access").setLevel(logging.DEBUG)
+
 
     # Connect to DB
     await db.connect(app, getenv("DATABASE_URL"))
