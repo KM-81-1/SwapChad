@@ -1,12 +1,13 @@
 from pathlib import Path
 from os import getenv
 from aiohttp import web
+from aiohttp_index import IndexMiddleware
 import aiohttp_swagger
 import rororo
 
 import db
 from chat import Lobby, Chats
-import views
+import api_views
 
 
 async def create_components(app):
@@ -18,7 +19,7 @@ async def create_components(app):
 
 
 async def create_app():
-    app = web.Application()
+    app = web.Application(middlewares=[IndexMiddleware()])
 
     # Connect to DB
     await db.connect(app, getenv("DATABASE_URL"))
@@ -37,7 +38,7 @@ async def create_app():
     rororo.setup_openapi(
         app,
         Path(__file__).parent / "openapi.yaml",
-        views.operations,
+        api_views.operations,
         cors_middleware_kwargs={"allow_all": True},
     )
 
@@ -55,7 +56,12 @@ async def create_app():
         ui_version=3,
     )
 
+    # Serve static files
+    app.router.add_static("/", "static")
+
+    # Binding initialization coroutines
     app.on_startup.append(create_components)
+
     return app
 
 
