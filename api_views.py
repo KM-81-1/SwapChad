@@ -22,12 +22,9 @@ async def signup(request: Request) -> Response:
     with openapi_context(request) as context:
         # Obtain registration information from the request
         try:
-            user_info = context.data["user_info"]
-            public_info = user_info["public"]
-            displayed_name = public_info["displayed_name"]
-            credentials = context.data["credentials"]
-            username = credentials["username"]
-            password = credentials["password"]
+            displayed_name = context.data["displayed_name"]
+            username = context.data["username"]
+            password = context.data["password"]
         except KeyError:
             raise ValidationError()
 
@@ -141,7 +138,7 @@ async def get_public_user_info(request: Request) -> Response:
     with openapi_context(request) as context:
         username = context.parameters.path["username"]
 
-    # Get profile data
+    # Get profile info
     async with db.get_session(request) as session:
         try:
             user = await get_user(session, username=username)
@@ -150,7 +147,9 @@ async def get_public_user_info(request: Request) -> Response:
             raise ObjectDoesNotExist(label="User")
 
     # Send profile data to the user
-    return json_response({'displayed_name': displayed_name})
+    return json_response({
+        'displayed_name': displayed_name,
+    })
 
 
 @operations.register("getAllUserInfo")
@@ -164,12 +163,19 @@ async def get_all_user_info(request: Request) -> Response:
         try:
             user = await get_user(session, user_id=user_id)
             displayed_name = user.displayed_name
+            username = user.username
         except NoResultFound:
             raise ObjectDoesNotExist(label="User")
 
     # Send profile data to the user
-    public_data = {'displayed_name': displayed_name}
-    return json_response({'public': public_data})
+    return json_response({
+        'public': {
+            'displayed_name': displayed_name
+        },
+        'private': {
+            'username': username
+        },
+    })
 
 
 @operations.register("modifyAllUserInfo")
@@ -179,8 +185,10 @@ async def modify_all_user_info(request: Request) -> Response:
     user_id = request['user_id']
     with openapi_context(request) as context:
         try:
-            public_data = context.data['public']
-            displayed_name = public_data['displayed_name']
+            public_info = context.data['public']
+            displayed_name = public_info['displayed_name']
+            private_info = context.data['private']
+            username = private_info['username']
         except KeyError:
             raise ValidationError()
 
@@ -188,6 +196,7 @@ async def modify_all_user_info(request: Request) -> Response:
     async with db.get_session(request) as session:
         user = await get_user(session, user_id=user_id)
         user.displayed_name = displayed_name
+        user.username = username
         await session.commit()
 
     return json_response()

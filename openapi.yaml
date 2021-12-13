@@ -20,10 +20,12 @@ paths:
               description: Регистрационные данные
               type: object
               properties:
-                all_user_info:
-                  $ref: '#/components/schemas/AllUserInfo'
-                credentials:
-                  $ref: '#/components/schemas/Credentials'
+                displayed_name:
+                  $ref: '#/components/schemas/DisplayedName'
+                username:
+                  $ref: '#/components/schemas/Username'
+                password:
+                  $ref: '#/components/schemas/Password'
       responses:
         '200':
           description: Успешная регистрация
@@ -33,8 +35,6 @@ paths:
                 $ref: '#/components/schemas/JWToken'
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
-        '409':
-          description: Юзернейм занят
         '422':
           $ref: '#/components/responses/IncorrectRequest'
 
@@ -49,7 +49,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Credentials'
+              description: Данные для входа
+              type: object
+              properties:
+                username:
+                  $ref: '#/components/schemas/Username'
+                password:
+                  $ref: '#/components/schemas/Password'
       responses:
         '200':
           description: Успешный вход
@@ -104,6 +110,8 @@ paths:
           description: Поиск чатов остановлен
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
 
@@ -127,6 +135,8 @@ paths:
           description: Поиск чатов остановлен
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
 
@@ -197,12 +207,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AllUserInfo'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/UserNotFound'
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
-        '422':
-          $ref: '#/components/responses/IncorrectRequest'
 
     post:
       description: Изменить публичные & приватные данные пользователя
@@ -228,19 +238,20 @@ paths:
 
 components:
   schemas:
+    DisplayedName:
+      description: Отображаемое имя
+      type: string
+      example: John Doe
 
-    Credentials:
-      description: Учётные данные для входа
-      type: object
-      properties:
-        username:
-          description: Логин
-          type: string
-          example: john_doe
-        password:
-          description: Пароль
-          type: string
-          example: john123
+    Username:
+      description: Юзернейм
+      type: string
+      example: john_doe
+
+    Password:
+      description: Пароль
+      type: string
+      example: john123
 
     JWToken:
       description: JWT-token
@@ -259,25 +270,19 @@ components:
         private:
           $ref: '#/components/schemas/PrivateUserInfo'
 
-
-
     PublicUserInfo:
       description: Публичные данные пользователя
       type: object
       properties:
         displayed_name:
-          description: Отображаемое имя
-          type: string
-          example: John Doe
+          $ref: '#/components/schemas/DisplayedName'
 
     PrivateUserInfo:
       description: Приватные данные пользователя
       type: object
       properties:
         username:
-          description: Логин
-          type: string
-          example: john_doe
+          $ref: '#/components/schemas/Username'
 
   responses:
     MethodNotAllowed:
