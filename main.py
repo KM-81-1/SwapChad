@@ -1,7 +1,6 @@
 from pathlib import Path
 from os import getenv
 from aiohttp import web
-from aiohttp_index import IndexMiddleware
 import aiohttp_swagger
 import rororo
 
@@ -19,7 +18,7 @@ async def create_components(app):
 
 
 async def create_app():
-    app = web.Application(middlewares=[IndexMiddleware()])
+    app = web.Application()
 
     # Connect to DB
     await db.connect(app, getenv("DATABASE_URL"))
