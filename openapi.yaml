@@ -20,8 +20,8 @@ paths:
               description: Регистрационные данные
               type: object
               properties:
-                user_info:
-                  $ref: '#/components/schemas/UserInfo'
+                all_user_info:
+                  $ref: '#/components/schemas/AllUserInfo'
                 credentials:
                   $ref: '#/components/schemas/Credentials'
       responses:
@@ -37,6 +37,8 @@ paths:
           description: Юзернейм занят
         '422':
           $ref: '#/components/responses/IncorrectRequest'
+
+
   /auth/login:
     post:
       description: Войти
@@ -61,6 +63,8 @@ paths:
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
+
+
   /chats/start-search:
     post:
       description: Поиск чатов
@@ -86,6 +90,8 @@ paths:
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
+
+
   /chats/abort-search:
     post:
       description: Остановка поиска чатов
@@ -100,6 +106,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
+
+
   /chats/{chat_id}:
     get:
       description: Остановка поиска чатов
@@ -121,6 +129,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
+
+
   /chat/{chat_id}/leave:
     post:
       description: Выход из чата
@@ -144,11 +154,13 @@ paths:
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
+
+
   /users/{username}:
     get:
-      description: Получить данные профиля
-      operationId: getProfile
-      tags: ["profiles"]
+      description: Получить публичные данные пользователя
+      operationId: getPublicUserInfo
+      tags: ["public user info"]
       parameters:
         - description: Юзернейм пользователя
           name: username
@@ -158,22 +170,44 @@ paths:
             type: string
       responses:
         '200':
-          description: Успешное получение данных профиля
+          description: Успешное получение публичных данных пользователя
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserInfo'
+                $ref: '#/components/schemas/PublicUserInfo'
         '404':
           $ref: '#/components/responses/UserNotFound'
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
-  /profile/modify:
+
+
+  /profile:
+    get:
+      description: Получить публичные & приватные данные пользователя
+      operationId: getAllUserInfo
+      tags: [ "all user info" ]
+      security:
+        - jwtAuth: [ ]
+      responses:
+        '200':
+          description: Успешное получение публичных & приватных данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllUserInfo'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+
     post:
-      description: Изменить данные профиля
-      operationId: modifyProfile
-      tags: [ "profiles" ]
+      description: Изменить публичные & приватные данные пользователя
+      operationId: modifyAllUserInfo
+      tags: [ "all user info" ]
       security:
         - jwtAuth: [ ]
       requestBody:
@@ -181,18 +215,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserInfo'
+              $ref: '#/components/schemas/AllUserInfo'
       responses:
         '200':
-          description: Успешное изменение профиля
+          description: Успешное изменение публичных & приватных данных
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
+
 components:
   schemas:
+
     Credentials:
       description: Учётные данные для входа
       type: object
@@ -205,6 +241,7 @@ components:
           description: Пароль
           type: string
           example: john123
+
     JWToken:
       description: JWT-token
       type: object
@@ -212,14 +249,35 @@ components:
         token:
           description: Токен
           type: string
-    UserInfo:
-      description: Информация о пользователе
+
+    AllUserInfo:
+      description: Публичные & приватные данные пользователя
+      type: object
+      properties:
+        public:
+          $ref: '#/components/schemas/PublicUserInfo'
+        private:
+          $ref: '#/components/schemas/PrivateUserInfo'
+
+
+
+    PublicUserInfo:
+      description: Публичные данные пользователя
       type: object
       properties:
         displayed_name:
-          description: Отображаемое имя пользователя
+          description: Отображаемое имя
           type: string
           example: John Doe
+
+    PrivateUserInfo:
+      description: Приватные данные пользователя
+      type: object
+      properties:
+        username:
+          description: Логин
+          type: string
+          example: john_doe
 
   responses:
     MethodNotAllowed:

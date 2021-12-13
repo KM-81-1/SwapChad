@@ -22,6 +22,8 @@ async def signup(request: Request) -> Response:
         # Obtain registration information from the request
         try:
             user_info = context.data["user_info"]
+            public_info = user_info["public"]
+            displayed_name = public_info["displayed_name"]
             credentials = context.data["credentials"]
             username = credentials["username"]
             password = credentials["password"]
@@ -31,7 +33,7 @@ async def signup(request: Request) -> Response:
     # Register user
     try:
         async with db.get_session(request) as session:
-            token = await Auth.signup(session, username, password, displayed_name=user_info["displayed_name"])
+            token = await Auth.signup(session, username, password, displayed_name=displayed_name)
     except Auth.UsernameIsTakenError:
         raise ValidationError(message="Username is taken")
 
@@ -127,8 +129,8 @@ async def leave_chat(request: Request) -> Response:
     return json_response()
 
 
-@operations.register("getProfile")
-async def get_profile(request: Request) -> Response:
+@operations.register("getPublicUserInfo")
+async def get_public_user_info(request: Request) -> Response:
     with openapi_context(request) as context:
         username = context.parameters.path["username"]
 
@@ -144,13 +146,32 @@ async def get_profile(request: Request) -> Response:
     return json_response({'displayed_name': displayed_name})
 
 
-@operations.register("modifyProfile")
+@operations.register("getAllUserInfo")
 @jwt_auth
-async def modify_profile(request: Request) -> Response:
+async def get_all_user_info(request: Request) -> Response:
+    user_id = request['user_id']
+
+    # Get profile data
+    async with db.get_session(request) as session:
+        try:
+            user = await get_user(session, user_id=user_id)
+            displayed_name = user.displayed_name
+        except NoResultFound:
+            raise ObjectDoesNotExist(label="User")
+
+    # Send profile data to the user
+    public_data = {'displayed_name': displayed_name}
+    return json_response({'public': public_data})
+
+
+@operations.register("modifyAllUserInfo")
+@jwt_auth
+async def modify_all_user_info(request: Request) -> Response:
     user_id = request['user_id']
     with openapi_context(request) as context:
         try:
-            displayed_name = context.data['displayed_name']
+            public_data = context.data['public']
+            displayed_name = public_data['displayed_name']
         except KeyError:
             raise ValidationError()
 
