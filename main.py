@@ -56,7 +56,7 @@ async def create_app():
     )
 
     # Serve static files
-    app.router.add_static("/", "static")
+    app.router.add_static("/web", "static")
 
     # Binding initialization coroutines
     app.on_startup.append(create_components)
