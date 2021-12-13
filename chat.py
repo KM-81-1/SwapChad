@@ -20,6 +20,7 @@ class Chat:
                 pass
 
     async def handle_update(self, from_id, update):
+        print("\t\tUPDATE FROM %s: %s" % (str(from_id), str(update)))
         for user_id, client in self.clients.items():
             if user_id != from_id:
                 await client.send_str("ECHO: " + str(update))
@@ -29,7 +30,6 @@ class Chat:
         self.clients[user_id] = ws
 
         async for update in ws:
-            print(update)
             await self.handle_update(user_id, update)
 
         return ws

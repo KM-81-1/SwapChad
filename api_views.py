@@ -20,7 +20,7 @@ operations = OperationTableDef()
 
 @operations.register("signUp")
 async def signup(request: Request) -> Response:
-    logging.error("\nSIGNUP")
+    logging.error("\t\tSIGNUP")
     with openapi_context(request) as context:
         # Obtain registration information from the request
         try:
@@ -43,7 +43,7 @@ async def signup(request: Request) -> Response:
 
 @operations.register("logIn")
 async def login(request: Request) -> Response:
-    logging.error("\nLOGIN")
+    logging.error("\t\tLOGIN")
     with openapi_context(request) as context:
         # Obtain login information from the request
         try:
@@ -66,7 +66,7 @@ async def login(request: Request) -> Response:
 @operations.register("startSearch")
 @jwt_auth
 async def start_search(request: Request) -> Response:
-    logging.error("\n\nSTART SEARCH")
+    logging.error("\t\tSTART SEARCH")
     user_id = request["user_id"]
     logging.error("GOT USER_ID")
     try:
@@ -85,7 +85,7 @@ async def start_search(request: Request) -> Response:
 @operations.register("abortSearch")
 @jwt_auth
 async def abort_search(request: Request) -> Response:
-    logging.error("\nABORT SEARCH")
+    logging.error("\t\tABORT SEARCH")
     user_id = request["user_id"]
     request.app["lobby"].abort_search(user_id)
 
@@ -95,7 +95,7 @@ async def abort_search(request: Request) -> Response:
 @operations.register("joinChat")
 @jwt_auth
 async def join_chat(request: Request) -> Response:
-    logging.error("\nJOIN CHAT")
+    logging.error("\t\tJOIN CHAT")
     user_id = request["user_id"]
     with openapi_context(request) as context:
         chat_id = context.parameters.path["chat_id"]
@@ -131,7 +131,7 @@ async def join_chat(request: Request) -> Response:
 @operations.register("leaveChat")
 @jwt_auth
 async def leave_chat(request: Request) -> Response:
-    logging.error("\nLEAVE CHAT")
+    logging.error("\t\tLEAVE CHAT")
     with openapi_context(request) as context:
         chat_id = context.parameters.path["chat_id"]
     try:
@@ -146,7 +146,7 @@ async def leave_chat(request: Request) -> Response:
 
 @operations.register("getPublicUserInfo")
 async def get_public_user_info(request: Request) -> Response:
-    logging.error("\nGET PUBLIC USER INFO")
+    logging.error("\t\tGET PUBLIC USER INFO")
     with openapi_context(request) as context:
         username = context.parameters.path["username"]
 
@@ -167,7 +167,7 @@ async def get_public_user_info(request: Request) -> Response:
 @operations.register("getAllUserInfo")
 @jwt_auth
 async def get_all_user_info(request: Request) -> Response:
-    logging.error("\nGET ALL USER INFO")
+    logging.error("\t\tGET ALL USER INFO")
     user_id = request['user_id']
 
     # Get profile data
@@ -193,7 +193,7 @@ async def get_all_user_info(request: Request) -> Response:
 @operations.register("modifyAllUserInfo")
 @jwt_auth
 async def modify_all_user_info(request: Request) -> Response:
-    logging.error("\nMODIFY ALL USER INFO")
+    logging.error("\t\tMODIFY ALL USER INFO")
     user_id = request['user_id']
     with openapi_context(request) as context:
         try:
@@ -215,7 +215,6 @@ async def modify_all_user_info(request: Request) -> Response:
 
 
 async def get_user(session, **filter_kwargs):
-    logging.error("\n__GET USER")
     query = select(db.User).filter_by(**filter_kwargs)
     result = await session.execute(query)
     user = result.scalar_one()

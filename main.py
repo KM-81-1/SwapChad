@@ -1,5 +1,6 @@
 from pathlib import Path
 from os import getenv
+from typing import Callable, Awaitable
 from aiohttp import web
 import aiohttp_swagger
 import rororo
@@ -18,8 +19,21 @@ async def create_components(app):
     app["lobby"] = lobby
 
 
+@web.middleware
+async def error_middleware(
+    request: web.Request,
+    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
+) -> web.StreamResponse:
+    try:
+        return await handler(request)
+    except web.HTTPException as exc:
+        logging.error(exc)
+        print()
+        return exc
+
+
 async def create_app():
-    app = web.Application()
+    app = web.Application(middlewares=[error_middleware])
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger("asyncio.access").setLevel(logging.DEBUG)
 
