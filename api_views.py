@@ -64,13 +64,18 @@ async def login(request: Request) -> Response:
 @operations.register("startSearch")
 @jwt_auth
 async def start_search(request: Request) -> Response:
-    logging.error("\nSTART SEARCH")
+    logging.error("\n\nSTART SEARCH")
     user_id = request["user_id"]
+    logging.error("GOT USER_ID")
     try:
         chat_id = await request.app["lobby"].find_chat(user_id)
+        logging.error("FOUND CHAT")
     except Lobby.AlreadySearchingError:
+        logging.error("AlreadySearchingError")
         raise ValidationError(message="Already searching")
     chat_id = chat_id.hex
+
+    logging.error("EXITING, SENDING CHAT " + str(chat_id))
 
     return json_response({"chat_id": chat_id})
 
@@ -97,15 +102,18 @@ async def join_chat(request: Request) -> Response:
     except ValueError:
         raise ValidationError()
 
+    # Upgrade connection to websocket
+    ws = WebSocketResponse()
+    await ws.prepare(request)
+
     # Obtain chat instance
     try:
         chat = request.app["chats"].find_chat(chat_id)
     except Chats.ChatNotFoundError:
+        await ws.close()
         raise ObjectDoesNotExist(label="Chat")
 
-    # Upgrade connection to websocket
-    ws = WebSocketResponse()
-    await ws.prepare(request)
+
 
     # Start chatting
     await chat.connect(user_id, ws)
