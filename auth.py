@@ -59,7 +59,7 @@ class Auth:
     @staticmethod
     def verify(jwt_token):
         """ Decodes JWT Bearer token and returns user_id from its payload """
-        logging.error("VERIFY TOKEN")
+        logging.error("VERIFY TOKEN: ", jwt_token)
         try:
             jwt_payload = jwt.decode(jwt_token, Auth.JWT_SECRET, algorithms=["HS256"])
             logging.error("PAYLOAD OBTAINED")
