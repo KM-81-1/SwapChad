@@ -55,6 +55,9 @@ class Lobby:
         self.waiting = []
         self.chats = chats
 
+    class AlreadySearchingError(Exception):
+        pass
+
     def match(self, new_pending_user):
         for i, _potential_companion in enumerate(self.waiting):
             if True:  # TODO matching
@@ -66,6 +69,9 @@ class Lobby:
         self.waiting.append(new_pending_user)
 
     async def find_chat(self, user_id):
+        for waiting_user in self.waiting:
+            if waiting_user.user_id == user_id:
+                raise Lobby.AlreadySearchingError
         new_pending_user = PendingUser(user_id)
         self.match(new_pending_user)
         return await new_pending_user.obtain_chat()

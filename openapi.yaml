@@ -64,7 +64,7 @@ paths:
   /chats/start-search:
     post:
       description: Поиск чатов
-      operationId: findChat
+      operationId: startSearch
       tags: ["chats"]
       security:
         - jwtAuth: []
@@ -121,31 +121,6 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '422':
           $ref: '#/components/responses/IncorrectRequest'
-#  /chat/a:
-#    get:
-#      description: Подключение к чату
-#      operationId: joinChat
-#      tags: ["chats"]
-#      parameters:
-#        - description: Id чата
-#          name: chat_id
-#          in: path
-#          required: true
-#          schema:
-#            type: string
-#      security:
-#        - jwtAuth: []
-#      responses:
-#        '200':
-#          description: Чат завершён
-#        '401':
-#          $ref: '#/components/responses/UnauthorizedError'
-#        '404':
-#          $ref: '#/components/responses/ChatNotFound'
-#        '405':
-#          $ref: '#/components/responses/MethodNotAllowed'
-#        '422':
-#          $ref: '#/components/responses/IncorrectRequest'
   /chat/{chat_id}/leave:
     post:
       description: Выход из чата

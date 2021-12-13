@@ -4,13 +4,13 @@ import uuid
 from aiohttp.web import json_response, Request, Response
 from aiohttp.web_ws import WebSocketResponse
 from rororo import openapi_context, OperationTableDef
-from rororo.openapi import ObjectDoesNotExist, ValidationError, BadRequest, BasicInvalidCredentials
+from rororo.openapi import ObjectDoesNotExist, ValidationError, BasicInvalidCredentials
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
 
 import db
 from auth import Auth, jwt_auth
-from chat import Chats
+from chat import Chats, Lobby
 
 logger = logging.getLogger(__name__)
 operations = OperationTableDef()
@@ -33,7 +33,7 @@ async def signup(request: Request) -> Response:
         async with db.get_session(request) as session:
             token = await Auth.signup(session, username, password, displayed_name=user_info["displayed_name"])
     except Auth.UsernameIsTakenError:
-        raise BadRequest(message="Username is taken")
+        raise ValidationError(message="Username is taken")
 
     # Send JWT token to the user
     return json_response({'token': token})
@@ -60,11 +60,14 @@ async def login(request: Request) -> Response:
     return json_response({'token': token})
 
 
-@operations.register("findChat")
+@operations.register("startSearch")
 @jwt_auth
-async def find_chat(request: Request) -> Response:
+async def start_search(request: Request) -> Response:
     user_id = request["user_id"]
-    chat_id = await request.app["lobby"].find_chat(user_id)
+    try:
+        chat_id = await request.app["lobby"].find_chat(user_id)
+    except Lobby.AlreadySearchingError:
+        raise ValidationError(message="Already searching")
     chat_id = chat_id.hex
 
     return json_response({"chat_id": chat_id})
