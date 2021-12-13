@@ -108,7 +108,7 @@ paths:
           $ref: '#/components/responses/IncorrectRequest'
 
 
-  /chats/{chat_id}:
+  /chat/{chat_id}:
     get:
       description: Остановка поиска чатов
       operationId: joinChat
