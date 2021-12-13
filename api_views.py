@@ -1,7 +1,9 @@
 import logging
 import uuid
 
+from aiohttp import WSCloseCode
 from aiohttp.web import json_response, Request, Response
+from aiohttp.web_exceptions import HTTPBadRequest
 from aiohttp.web_ws import WebSocketResponse
 from rororo import openapi_context, OperationTableDef
 from rororo.openapi import ObjectDoesNotExist, ValidationError, BasicInvalidCredentials
@@ -104,16 +106,17 @@ async def join_chat(request: Request) -> Response:
 
     # Upgrade connection to websocket
     ws = WebSocketResponse()
-    await ws.prepare(request)
+    try:
+        await ws.prepare(request)
+    except HTTPBadRequest:
+        raise ValidationError(message="Websocket connection is required")
 
     # Obtain chat instance
     try:
         chat = request.app["chats"].find_chat(chat_id)
     except Chats.ChatNotFoundError:
-        await ws.close()
+        await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Chat not found".encode("utf-8"))
         raise ObjectDoesNotExist(label="Chat")
-
-
 
     # Start chatting
     await chat.connect(user_id, ws)
@@ -121,6 +124,7 @@ async def join_chat(request: Request) -> Response:
     # Exit from chat
     await request.app["chats"].stop(chat_id)
 
+    await ws.close()
     return json_response()
 
 
