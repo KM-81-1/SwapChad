@@ -23,7 +23,6 @@ async def create_app():
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger("asyncio.access").setLevel(logging.DEBUG)
 
-
     # Connect to DB
     await db.connect(app, getenv("DATABASE_URL"))
 
@@ -61,6 +60,11 @@ async def create_app():
 
     # Serve static files
     app.router.add_static("/web", "static")
+
+    # Redirect to landing
+    async def _landing_redirect(_request):
+        return web.HTTPTemporaryRedirect('web/index.html')
+    app.router.add_route("get", "/", handler=_landing_redirect)
 
     # Binding initialization coroutines
     app.on_startup.append(create_components)
