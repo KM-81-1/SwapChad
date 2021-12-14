@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+from aiohttp import WSMsgType
 
 
 class Chat:
@@ -21,9 +22,10 @@ class Chat:
 
     async def handle_update(self, from_id, update):
         print("\t\tUPDATE FROM %s: %s" % (str(from_id), str(update)))
-        for user_id, client in self.clients.items():
-            if user_id != from_id:
-                await client.send_str("ECHO: " + str(update))
+        if update.type == WSMsgType.TEXT:
+            for user_id, client in self.clients.items():
+                if user_id != from_id:
+                    await client.send_str(update.data)
 
     async def connect(self, user_id, ws):
         """ Adds user to the chat """
@@ -77,8 +79,7 @@ class Lobby:
             if waiting_user.user_id == user_id:
                 self.waiting.pop(i)
                 print("\t\tFOUND OLD FOR %s, REMOVING" % str(user_id))
-                # raise Lobby.AlreadySearchingError
-                break
+                raise Lobby.AlreadySearchingError
         print("\t\tCALLING MATCH FOR %s" % str(user_id))
         new_pending_user = PendingUser(user_id)
         self.match(new_pending_user)
