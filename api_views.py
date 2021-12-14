@@ -102,6 +102,7 @@ async def join_chat(request: Request) -> Response:
     except ValueError:
         raise ValidationError()
 
+    logging.error("\t\tGOT CHAT ID")
     # Upgrade connection to websocket
     ws = WebSocketResponse()
     try:
@@ -109,6 +110,7 @@ async def join_chat(request: Request) -> Response:
     except HTTPBadRequest:
         raise ValidationError(message="Websocket connection is required")
 
+    logging.error("\t\tMADE WEBSOCKET")
     # Obtain chat instance
     try:
         chat = request.app["chats"].find_chat(chat_id)
@@ -116,8 +118,12 @@ async def join_chat(request: Request) -> Response:
         await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Chat not found".encode("utf-8"))
         raise ObjectDoesNotExist(label="Chat")
 
+    logging.error("\t\tOBTAINED CHAT")
+
     # Receive token from websocket
     token = await ws.receive_str()
+
+    logging.error("\t\tRECEIVED TOKEN")
 
     # Validate and obtain user_id from it
     try:
@@ -127,13 +133,22 @@ async def join_chat(request: Request) -> Response:
         logging.error("INVALID JWT TOKEN")
         raise BasicSecurityError(message="Invalid JWT token")
 
+    logging.error("\t\tTOKEN CONFIRMED")
+
     # Start chatting
     await chat.connect(user_id, ws)
+
+    logging.error("\t\tCONNECTED TO THE CHAT")
 
     # Exit from chat
     await request.app["chats"].stop(chat_id)
 
+    logging.error("\t\tEXIT FROM THE CHAT")
+
     await ws.close()
+
+    logging.error("\t\tCLOSED WEBHOOK, END")
+
     return json_response()
 
 
