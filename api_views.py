@@ -44,8 +44,9 @@ async def signup(request: Request) -> Response:
 @operations.register("logIn")
 async def login(request: Request) -> Response:
     logging.error("\t\tLOGIN")
+
+    # Obtain login information from the request
     with openapi_context(request) as context:
-        # Obtain login information from the request
         try:
             username = context.data["username"]
             password = context.data["password"]
@@ -57,7 +58,9 @@ async def login(request: Request) -> Response:
         async with db.get_session(request) as session:
             token = await Auth.login(session, username, password)
     except Auth.WrongCredentials:
-        raise BasicInvalidCredentials()
+        raise BasicInvalidCredentials(headers={
+            "WWW-Authenticate": "xBasic"
+        })
 
     # Send JWT Bearer token to the user
     return json_response({'token': token})
