@@ -6,7 +6,7 @@ from aiohttp.web import json_response, Request, Response
 from aiohttp.web_exceptions import HTTPBadRequest
 from aiohttp.web_ws import WebSocketResponse
 from rororo import openapi_context, OperationTableDef
-from rororo.openapi import ObjectDoesNotExist, ValidationError, BasicInvalidCredentials
+from rororo.openapi import ObjectDoesNotExist, ValidationError, BasicInvalidCredentials, BasicSecurityError
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
 
@@ -93,10 +93,8 @@ async def abort_search(request: Request) -> Response:
 
 
 @operations.register("joinChat")
-@jwt_auth
 async def join_chat(request: Request) -> Response:
     logging.error("\t\tJOIN CHAT")
-    user_id = request["user_id"]
     with openapi_context(request) as context:
         chat_id = context.parameters.path["chat_id"]
     try:
@@ -117,6 +115,17 @@ async def join_chat(request: Request) -> Response:
     except Chats.ChatNotFoundError:
         await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Chat not found".encode("utf-8"))
         raise ObjectDoesNotExist(label="Chat")
+
+    # Receive token from websocket
+    token = await ws.receive_str()
+
+    # Validate and obtain user_id from it
+    try:
+        user_id = Auth.verify(token)
+    except Auth.InvalidToken:
+        await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Invalid JWT token".encode("utf-8"))
+        logging.error("INVALID JWT TOKEN")
+        raise BasicSecurityError(message="Invalid JWT token")
 
     # Start chatting
     await chat.connect(user_id, ws)

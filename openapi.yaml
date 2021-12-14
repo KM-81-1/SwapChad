@@ -128,13 +128,9 @@ paths:
           required: true
           schema:
             type: string
-      security:
-        - jwtAuth: [ ]
       responses:
         '200':
           description: Поиск чатов остановлен
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
