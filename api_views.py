@@ -1,13 +1,12 @@
 import logging
 import uuid
-
 from aiohttp import WSCloseCode
 from aiohttp.web import json_response, Request, Response
 from aiohttp.web_exceptions import HTTPBadRequest
 from aiohttp.web_ws import WebSocketResponse
 from rororo import openapi_context, OperationTableDef
 from rororo.openapi import ObjectDoesNotExist, ValidationError, BasicInvalidCredentials, BasicSecurityError
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import NoResultFound
 
 import db
@@ -239,6 +238,24 @@ async def modify_all_user_info(request: Request) -> Response:
         await session.commit()
 
     return json_response()
+
+
+@operations.register("clearRuntime")
+async def clear_runtime(request: Request) -> Response:
+    request.app["chats"].chats.clear()
+    request.app["lobby"].waiting.clear()
+    logging.error("\n\n\n\n\t\tRUNTIME CLEARED\n\n\n")
+    return Response(text="RUNTIME CLEARED")
+
+
+@operations.register("clearDb")
+async def clear_db(request: Request) -> Response:
+    async with db.get_session(request) as session:
+        query = delete(db.User)
+        await session.execute(query)
+        await session.commit()
+    logging.error("\n\n\n\n\t\tDB CLEARED\n\n\n")
+    return Response(text="DB CLEARED")
 
 
 async def get_user(session, **filter_kwargs):

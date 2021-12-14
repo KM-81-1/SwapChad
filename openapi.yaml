@@ -232,6 +232,26 @@ paths:
         '422':
           $ref: '#/components/responses/IncorrectRequest'
 
+
+  /clear/runtime:
+    get:
+      description: Очистка очереди и чатов
+      operationId: clearRuntime
+      tags: [ "administrative" ]
+      responses:
+        '200':
+          description: Очередь и чаты очищены успешно
+
+
+  /clear/db:
+    get:
+      description: Очистка БД
+      operationId: clearDb
+      tags: [ "administrative" ]
+      responses:
+        '200':
+          description: БД очищена успешно
+
 components:
   schemas:
     DisplayedName:
