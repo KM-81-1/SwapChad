@@ -59,26 +59,36 @@ class Lobby:
         pass
 
     def match(self, new_pending_user):
+        print("\t\tTRYING TO MATCH %s" % str(new_pending_user.user_id))
         for i, _potential_companion in enumerate(self.waiting):
             if True:  # TODO matching
+                print("\t\tMATCHED WITH %s" % str(_potential_companion.user_id))
                 (client_1, client_2) = new_pending_user, self.waiting.pop(i)
                 new_chat_id = self.chats.start()
                 client_1.send_chat_id(new_chat_id)
                 client_2.send_chat_id(new_chat_id)
                 return
+        print("\t\tNO COMPANIONS FOR %s, WAITING..." % str(new_pending_user.user_id))
         self.waiting.append(new_pending_user)
 
     async def find_chat(self, user_id):
-        for waiting_user in self.waiting:
+        print("\t\tFINDING CHAT FOR %s" % str(user_id))
+        for i, waiting_user in enumerate(self.waiting):
             if waiting_user.user_id == user_id:
-                raise Lobby.AlreadySearchingError
+                self.waiting.pop(i)
+                print("\t\tFOUND OLD FOR %s, REMOVING" % str(user_id))
+                # raise Lobby.AlreadySearchingError
+                break
+        print("\t\tCALLING MATCH FOR %s" % str(user_id))
         new_pending_user = PendingUser(user_id)
         self.match(new_pending_user)
+        print("\t\tFOUND CHAT FOR %s" % str(user_id))
         return await new_pending_user.obtain_chat()
 
     def abort_search(self, user_id):
         for i, pending_user in enumerate(self.waiting):
             if pending_user.user_id == user_id:
+                print("\t\tABORTED SEARCH FOR %s" % str(user_id))
                 self.waiting.pop(i)
                 break
 
