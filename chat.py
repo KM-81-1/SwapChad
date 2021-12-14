@@ -83,8 +83,9 @@ class Lobby:
         print("\t\tCALLING MATCH FOR %s" % str(user_id))
         new_pending_user = PendingUser(user_id)
         self.match(new_pending_user)
+        chat_id = await new_pending_user.obtain_chat()
         print("\t\tFOUND CHAT FOR %s" % str(user_id))
-        return await new_pending_user.obtain_chat()
+        return chat_id
 
     def abort_search(self, user_id):
         for i, pending_user in enumerate(self.waiting):
