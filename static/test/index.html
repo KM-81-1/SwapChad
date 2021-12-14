@@ -3,8 +3,429 @@
 <head>
     <meta charset="UTF-8">
     <title>API Test</title>
+
+    <template id="req_resp_template">
+        Status: <b class="status">NOT YET PERFORMED</b>
+        <details>
+            <summary>Request and response details</summary>
+            <b>Request:</b>
+            <pre class="request"></pre>
+            <pre class="request"></pre>
+            <pre class="request"></pre>
+            <b>Response:</b>
+            <pre class="response"></pre>
+            <pre class="response"></pre>
+        </details>
+        <button onclick="this.parentNode.innerHTML=''">Clear result</button>
+    </template>
+
+    <script>
+        function insert_req_resp_template(elem_id) {
+            let elem = document.getElementById(elem_id + "_req_resp");
+            elem.innerHTML = "";
+            elem.appendChild(document.getElementById("req_resp_template").content.cloneNode(true));
+        }
+
+        async function do_request(elem_id, method, url, body, token) {
+            let req_resp = document.getElementById(elem_id + "_req_resp");
+            let status = req_resp.getElementsByClassName("status")[0];
+            let req = req_resp.getElementsByClassName("request");
+            let resp = req_resp.getElementsByClassName("response");
+
+            req[0].innerText = "Method: " + method.toString();
+            req[1].innerText = "Url: " + url;
+            req[2].innerText = "Body:\n" + JSON.stringify(body, undefined, 2);
+
+            resp[0].innerText = "";
+            resp[1].innerHTML = "";
+
+            if (body !== undefined) {
+                body = JSON.stringify(body);
+            }
+
+            let headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (token !== undefined) {
+                headers['Authorization'] = 'Bearer ' + token;
+            }
+
+            status.innerText = "WAITING FOR RESPONSE"
+
+            const response = await fetch(url, {
+                method: method,
+                headers: headers,
+                body: body,
+            });
+
+            let response_code = response.status;
+            let response_body = await response.json().catch((_) => response.body);
+
+            status.innerText = response_code === 200 ? "OK" : "FAILED";
+            resp[0].innerText = "Code: " + response_code.toString();
+            resp[1].innerHTML = "Body:\n" + JSON.stringify(response_body, undefined, 2);
+
+            return [response_code, response_body];
+        }
+
+        var ws = null;
+
+        function add_message(sender, text) {
+            let chat_messages = document.getElementById("chat_messages");
+            let new_message = document.createElement("li");
+
+            let sender_elem = document.createElement("b");
+            let sender_node = document.createTextNode(sender + ": ");
+            sender_elem.appendChild(sender_node);
+
+            let text_elem = document.createElement("i");
+            let text_node = document.createTextNode(text);
+            text_elem.appendChild(text_node);
+
+            new_message.appendChild(sender_elem);
+            new_message.appendChild(text_elem);
+
+            chat_messages.appendChild(new_message);
+        }
+
+        function close_chat(by) {
+            let chat_status = document.getElementById("chat_status");
+            let chat_messages = document.getElementById("chat_messages");
+            let your_message = document.getElementById("your_message");
+            ws = null;
+            document.getElementById("chat_id").innerText = "";
+            chat_status.innerText = "Chat was closed by " + by;
+            chat_messages.innerHTML = '';
+            your_message.value = "";
+
+            document.getElementById("authentication").hidden = false;
+            document.getElementById("all_user_info").hidden = false;
+            document.getElementById("chats").hidden = false;
+            document.getElementById("chat").hidden = true;
+        }
+
+        function get_public_user_info() {
+            let username = document.getElementById("public_user_info_username").value;
+            if (username.trim() === "") {
+                alert("Must specify username!");
+                return;
+            }
+
+            document.getElementById("public_user_info_dispname").innerText = "";
+            insert_req_resp_template("public_user_info");
+
+            do_request("public_user_info", "GET", "/api/users/" + username, undefined).
+            then(([code, body]) => {
+                if (code === 200) {
+                    document.getElementById("public_user_info_dispname").innerText = body['displayed_name'];
+                }
+            });
+        }
+
+        function register() {
+            let dispname = document.getElementById("cached_dispname").value;
+            let username = document.getElementById("cached_username").value;
+            let password = document.getElementById("cached_password").value;
+
+            if (dispname.trim() === "" || username.trim() === "" || password.trim() === "") {
+                alert("Must specify dispname, username, password!");
+                return;
+            }
+
+            document.getElementById("cached_token").innerText = "";
+            insert_req_resp_template("auth");
+
+            do_request("auth", "POST", "/api/auth/signup", {
+                "displayed_name": dispname,
+                "username": username,
+                "password": password,
+            }).
+            then(([code, body]) => {
+                if (code === 200) {
+                    document.getElementById("cached_token").innerText = body['token'];
+                }
+            });
+        }
+
+        function login() {
+            let username = document.getElementById("cached_username").value;
+            let password = document.getElementById("cached_password").value;
+
+            if (username.trim() === "" || password.trim() === "") {
+                alert("Must specify username and password!");
+                return;
+            }
+
+            document.getElementById("cached_token").innerText = "";
+            insert_req_resp_template("auth");
+
+            do_request("auth", "POST", "/api/auth/login", {
+                "username": username,
+                "password": password,
+            }).
+            then(([code, body]) => {
+                if (code === 200) {
+                    document.getElementById("cached_token").innerText = body['token'];
+                }
+
+                document.getElementById("all_user_info").hidden = false;
+                document.getElementById("chats").hidden = false;
+            });
+        }
+
+        function logout() {
+            document.getElementById("cached_token").innerText = "";
+            document.getElementById("all_user_info").hidden = true;
+            document.getElementById("chats").hidden = true;
+            document.getElementById("chat").hidden = true;
+        }
+
+        function get_all_user_info() {
+            let token = document.getElementById("cached_token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            document.getElementById("all_user_info_dispname").innerText = "";
+            document.getElementById("all_user_info_username").innerText = "";
+            insert_req_resp_template("all_user_info");
+
+            do_request("all_user_info", "GET", "/api/profile", undefined, token).
+            then(([code, body]) => {
+                if (code === 200) {
+                    let public_info = body['public'];
+                    document.getElementById("all_user_info_dispname").innerText = public_info['displayed_name'];
+                    let private_info = body['private'];
+                    document.getElementById("all_user_info_username").innerText = private_info['username'];
+                }
+            });
+        }
+
+        function modify_all_user_info() {
+            let token = document.getElementById("cached_token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            let dispname = document.getElementById("cached_dispname").value;
+            let username = document.getElementById("cached_username").value;
+
+            if (dispname.trim() === "" || username.trim() === "") {
+                alert("Must specify dispname and username!");
+                return;
+            }
+
+            document.getElementById("all_user_info_dispname").innerText = "";
+            document.getElementById("all_user_info_username").innerText = "";
+            insert_req_resp_template("all_user_info");
+
+            do_request("all_user_info", "PUT", "/api/profile", {
+                "public": {
+                    "displayed_name": dispname,
+                },
+                "private": {
+                    "username": username,
+                }
+            }, token).
+            then(([code, _body]) => {
+                if (code === 200) {
+                    document.getElementById("all_user_info_dispname").innerText = dispname;
+                    document.getElementById("all_user_info_username").innerText = username;
+                }
+            });
+        }
+
+        function start_search() {
+            let token = document.getElementById("cached_token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            document.getElementById("chat_id").innerText = "";
+            insert_req_resp_template("chats");
+
+            do_request("chats", "POST", "/api/chats/start-search", undefined, token).
+            then(([code, body]) => {
+                if (code === 200) {
+                    document.getElementById("chat_id").innerText = body['chat_id'];
+
+                    document.getElementById("chat").hidden = false;
+
+                    join_chat()
+                }
+            });
+        }
+
+        function abort_search() {
+            let token = document.getElementById("cached_token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            insert_req_resp_template("chats");
+
+            do_request("chats", "POST", "/api/chats/abort-search", undefined, token).
+            then(([_code, _body]) => {
+            });
+        }
+
+        function join_chat() {
+            let token = document.getElementById("cached_token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            let chat_id = document.getElementById("chat_id").innerText;
+            if (chat_id.trim() === "") {
+                alert("Must provide chat id!");
+                return;
+            }
+
+            let chat_status = document.getElementById("chat_status")
+
+            chat_status.innerText = "Connecting...";
+            ws = new WebSocket("ws:127.0.0.1/api/chat/" + chat_id);
+            ws.onopen = (_event) => {
+                document.getElementById("authentication").hidden = true;
+                document.getElementById("all_user_info").hidden = true;
+                document.getElementById("chats").hidden = true;
+                chat_status.innerText = "Connected to the chat";
+                ws.send(token);
+            };
+
+            ws.onmessage = (event) => {
+                chat_status.innerText = "Received " + event.type;
+                if (event.type === "message") {
+                    add_message("REMOTE", event.data);
+                }
+            };
+
+            ws.onerror = (event) => {
+                console.log("WEBSOCKET ERROR")
+                console.log(event);
+                console.log(event.data);
+            };
+
+            ws.onclose = (_event) => {
+                close_chat("REMOTE");
+            };
+        }
+
+        function send_message() {
+            if (ws === null) {
+                alert("Must be in chat!");
+                return;
+            }
+
+            let chat_status = document.getElementById("chat_status");
+            let your_message = document.getElementById("your_message");
+            let text = your_message.value;
+            ws.send(text)
+            chat_status.innerText = "Sent message";
+            add_message("YOU", text);
+        }
+
+        function leave_chat() {
+            if (ws === null) {
+                alert("Must be in chat!");
+                return;
+            }
+
+            let token = document.getElementById("cached_token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            let chat_id = document.getElementById("chat_id").innerText;
+            if (chat_id.trim() === "") {
+                alert("Must provide chat id!");
+                return;
+            }
+
+            insert_req_resp_template("chats");
+
+            do_request("chats", "POST", "/api/chat/" + chat_id + "/leave", undefined, token).
+            then(([code, _body]) => {
+                if (code === 200) {
+                    ws.onclose = undefined;
+                    close_chat("YOU");
+                }
+            });
+        }
+    </script>
 </head>
 <body>
     <h2><a href="/">Back to main page</a></h2>
+
+    <div id="public_user_info">
+        <h3>Public user info</h3>
+        <label>Username <input type="text" id=public_user_info_username></label><br>
+        <button onclick="get_public_user_info()">Get</button>
+        <br>
+        <label>Displayed name:</label>
+        <pre id="public_user_info_dispname"></pre>
+        <div id="public_user_info_req_resp"></div>
+        <br>
+    </div>
+
+    <div id="authentication">
+        <h3>Authentication</h3>
+        <label>Cached dispname: <input type="text" id="cached_dispname"></label><br>
+        <label>Cached username: <input type="text" id="cached_username"></label><br>
+        <label>Cached password: <input type="text" id="cached_password"></label><br>
+        <br><label>Cached token:</label>
+        <pre id="cached_token"></pre>
+        <button onclick="register()">Register</button>
+        <button onclick="login()">Login</button>
+        <button onclick="logout()">Logout</button>
+        <div id="auth_req_resp"></div>
+        <br>
+    </div>
+
+    <div id="all_user_info" hidden>
+        <h3>All user info</h3>
+        <button onclick="get_all_user_info()">Get</button>
+        <button onclick="modify_all_user_info()">Modify</button>
+        <br>
+        <label>Displayed name:</label>
+        <pre id="all_user_info_dispname"></pre>
+        <label>Username:</label>
+        <pre id="all_user_info_username"></pre>
+        <div id="all_user_info_req_resp"></div>
+        <br>
+    </div>
+
+    <div id="chats" hidden>
+        <h3>Chats</h3>
+        <button onclick="start_search()">Start search</button>
+        <button onclick="abort_search()">Abort search</button>
+        <br>
+        <label>Chat id:</label>
+        <pre id="chat_id"></pre>
+        <div id="chats_req_resp"></div>
+        <br>
+    </div>
+
+    <div id="chat" hidden>
+        <h3>Chat</h3>
+        <button onclick="join_chat()">Join chat</button>
+        <button onclick="leave_chat()">Leave chat</button>
+        <br>
+        <label>Status:</label>
+        <b id="chat_status">Not in chat</b><br>
+        <br>
+        <label>Messages:</label>
+        <ul id="chat_messages"></ul>
+        <label>Your message: <input type="text" id="your_message"></label>
+        <button onclick="send_message()">Send</button>
+    </div>
+
 </body>
 </html>
