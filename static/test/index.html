@@ -70,6 +70,7 @@
         }
 
         var ws = null;
+        var api_url = window.location.origin + "/api/";
 
         function add_message(sender, text) {
             let chat_messages = document.getElementById("chat_messages");
@@ -115,7 +116,7 @@
             document.getElementById("public_user_info_dispname").innerText = "";
             insert_req_resp_template("public_user_info");
 
-            do_request("public_user_info", "GET", "/api/users/" + username, undefined).
+            do_request("public_user_info", "GET", api_url + "users/" + username, undefined).
             then(([code, body]) => {
                 if (code === 200) {
                     document.getElementById("public_user_info_dispname").innerText = body['displayed_name'];
@@ -136,7 +137,7 @@
             document.getElementById("cached_token").innerText = "";
             insert_req_resp_template("auth");
 
-            do_request("auth", "POST", "/api/auth/signup", {
+            do_request("auth", "POST", api_url + "auth/signup", {
                 "displayed_name": dispname,
                 "username": username,
                 "password": password,
@@ -160,7 +161,7 @@
             document.getElementById("cached_token").innerText = "";
             insert_req_resp_template("auth");
 
-            do_request("auth", "POST", "/api/auth/login", {
+            do_request("auth", "POST", api_url + "auth/login", {
                 "username": username,
                 "password": password,
             }).
@@ -192,7 +193,7 @@
             document.getElementById("all_user_info_username").innerText = "";
             insert_req_resp_template("all_user_info");
 
-            do_request("all_user_info", "GET", "/api/profile", undefined, token).
+            do_request("all_user_info", "GET", api_url + "profile", undefined, token).
             then(([code, body]) => {
                 if (code === 200) {
                     let public_info = body['public'];
@@ -222,7 +223,7 @@
             document.getElementById("all_user_info_username").innerText = "";
             insert_req_resp_template("all_user_info");
 
-            do_request("all_user_info", "PUT", "/api/profile", {
+            do_request("all_user_info", "PUT", api_url + "profile", {
                 "public": {
                     "displayed_name": dispname,
                 },
@@ -248,7 +249,7 @@
             document.getElementById("chat_id").innerText = "";
             insert_req_resp_template("chats");
 
-            do_request("chats", "POST", "/api/chats/start-search", undefined, token).
+            do_request("chats", "POST", api_url + "chats/start-search", undefined, token).
             then(([code, body]) => {
                 if (code === 200) {
                     document.getElementById("chat_id").innerText = body['chat_id'];
@@ -269,7 +270,7 @@
 
             insert_req_resp_template("chats");
 
-            do_request("chats", "POST", "/api/chats/abort-search", undefined, token).
+            do_request("chats", "POST", api_url + "chats/abort-search", undefined, token).
             then(([_code, _body]) => {
             });
         }
@@ -290,7 +291,7 @@
             let chat_status = document.getElementById("chat_status")
 
             chat_status.innerText = "Connecting...";
-            ws = new WebSocket("ws:127.0.0.1/api/chat/" + chat_id);
+            ws = new WebSocket(api_url.replace("http", "ws") + "chat/" + chat_id);
             ws.onopen = (_event) => {
                 document.getElementById("authentication").hidden = true;
                 document.getElementById("all_user_info").hidden = true;
@@ -351,7 +352,7 @@
 
             insert_req_resp_template("chats");
 
-            do_request("chats", "POST", "/api/chat/" + chat_id + "/leave", undefined, token).
+            do_request("chats", "POST", api_url + "chat/" + chat_id + "/leave", undefined, token).
             then(([code, _body]) => {
                 if (code === 200) {
                     ws.onclose = undefined;
