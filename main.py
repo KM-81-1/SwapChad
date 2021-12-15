@@ -86,7 +86,6 @@ async def create_app():
     return app
 
 
-# If running without gunicorn
 if __name__ == '__main__':
     web.run_app(create_app(),
                 host=getenv("HOST", "127.0.0.1"),
