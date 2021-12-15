@@ -9,16 +9,17 @@ import logging
 import logging.config
 
 import db
-from chat import Lobby, Chats
+from chat import ChatsList
+from lobby import Lobby
 import api_views
 import context_id_hook
 
 
 async def create_components(app):
-    chats = Chats()
-    app["chats"] = chats
+    chats_list = ChatsList()
+    app["chats_list"] = chats_list
 
-    lobby = Lobby(chats)
+    lobby = Lobby(chats_list)
     app["lobby"] = lobby
 
 

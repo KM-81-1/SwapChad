@@ -10,8 +10,9 @@ from sqlalchemy import select, delete
 from sqlalchemy.exc import NoResultFound
 
 import db
+from lobby import Lobby
+from chat import ChatsList
 from auth import Auth, jwt_auth
-from chat import Chats, Lobby
 
 logger = logging.getLogger(__name__)
 operations = OperationTableDef()
@@ -19,15 +20,14 @@ operations = OperationTableDef()
 
 @operations.register("signUp")
 async def signup(request: Request) -> Response:
-    logging.error("\t\tSIGNUP")
+    # Obtain registration information from the request
     with openapi_context(request) as context:
-        # Obtain registration information from the request
         try:
             displayed_name = context.data["displayed_name"]
             username = context.data["username"]
             password = context.data["password"]
         except KeyError:
-            raise ValidationError()
+            raise ValidationError(message="Wrong body scheme")
 
     # Register user
     try:
@@ -42,15 +42,13 @@ async def signup(request: Request) -> Response:
 
 @operations.register("logIn")
 async def login(request: Request) -> Response:
-    logging.error("\t\tLOGIN")
-
     # Obtain login information from the request
     with openapi_context(request) as context:
         try:
             username = context.data["username"]
             password = context.data["password"]
         except KeyError:
-            raise ValidationError()
+            raise ValidationError(message="Wrong body scheme")
 
     # Login user
     try:
@@ -68,18 +66,20 @@ async def login(request: Request) -> Response:
 @operations.register("startSearch")
 @jwt_auth
 async def start_search(request: Request) -> Response:
-    logging.error("\t\tSTART SEARCH")
     user_id = request["user_id"]
-    logging.error("GOT USER_ID")
     try:
-        chat_id = await request.app["lobby"].find_chat(user_id)
-        logging.error("FOUND CHAT")
+        chat_id = await request.app["lobby"].start_search_and_wait(user_id)
     except Lobby.AlreadySearchingError:
-        logging.error("AlreadySearchingError")
+        logger.error("USER %s WAS ALREADY SEARCHING", user_id)
         raise ValidationError(message="Already searching")
+
+    if chat_id is None:
+        logger.info("TO USER %s: CHAT NOT FOUND (ABORTED)", user_id)
+        raise ObjectDoesNotExist("User")
+
     chat_id = chat_id.hex
 
-    logging.error("EXITING, SENDING CHAT " + str(chat_id))
+    logger.info("TO USER %s: SENDING CHAT %s", user_id, chat_id)
 
     return json_response({"chat_id": chat_id})
 
@@ -87,92 +87,92 @@ async def start_search(request: Request) -> Response:
 @operations.register("abortSearch")
 @jwt_auth
 async def abort_search(request: Request) -> Response:
-    logging.error("\t\tABORT SEARCH")
     user_id = request["user_id"]
-    request.app["lobby"].abort_search(user_id)
+
+    try:
+        request.app["lobby"].abort_search(user_id)
+    except Lobby.WasNotSearchingError:
+        logger.info("USER %s ABORTED CHAT SEARCH (WAS NOT SEARCHING)", user_id)
+        return json_response()
+
+    logger.info("USER %s ABORTED CHAT SEARCH", user_id)
 
     return json_response()
 
 
 @operations.register("joinChat")
 async def join_chat(request: Request) -> Response:
-    logging.error("\t\tJOIN CHAT")
     with openapi_context(request) as context:
         chat_id = context.parameters.path["chat_id"]
     try:
         chat_id = uuid.UUID(chat_id)
     except ValueError:
-        raise ValidationError()
+        logger.error("Invalid chat_id!")
+        raise ValidationError(message="Invalid chat_id")
 
-    logging.error("\t\tGOT CHAT ID")
+    logger.info("SWITCHING TO WEBSOCKET...")
+
     # Upgrade connection to websocket
     ws = WebSocketResponse()
     try:
         await ws.prepare(request)
     except HTTPBadRequest:
+        logger.error("BAD HTTP REQUEST FOR WEBSOCKET")
         raise ValidationError(message="Websocket connection is required")
 
-    logging.error("\t\tMADE WEBSOCKET")
+    logger.info("NOW IN WEBSOCKET")
+
     # Obtain chat instance
     try:
-        chat = request.app["chats"].find_chat(chat_id)
-    except Chats.ChatNotFoundError:
+        chat = request.app["chats_list"].find_chat(chat_id)
+    except ChatsList.ChatNotFoundError:
+        logger.error("CHAT %s NOT FOUND", chat_id)
         await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Chat not found".encode("utf-8"))
-        raise ObjectDoesNotExist(label="Chat")
+        return ws
 
-    logging.error("\t\tOBTAINED CHAT")
+    logging.info("CHAT %s FOUND, WAITING FOR TOKEN...", chat_id)
 
     # Receive token from websocket
     token = await ws.receive_str()
-
-    logging.error("\t\tRECEIVED TOKEN")
 
     # Validate and obtain user_id from it
     try:
         user_id = Auth.verify(token)
     except Auth.InvalidToken:
+        logger.error("INVALID JWT TOKEN: %s", token)
         await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Invalid JWT token".encode("utf-8"))
-        logging.error("INVALID JWT TOKEN")
-        raise BasicSecurityError(message="Invalid JWT token")
+        return ws
 
-    logging.error("\t\tTOKEN CONFIRMED")
+    logger.info("CONFIRMED TOKEN, IT IS USER %s, CONNECTING...", user_id)
 
-    # Start chatting
-    await chat.connect(user_id, ws)
+    # Perform chatting until exited
+    await chat.connect_and_stay(user_id, ws)
 
-    logging.error("\t\tCONNECTED TO THE CHAT")
-
-    # Exit from chat
-    await request.app["chats"].stop(chat_id)
-
-    logging.error("\t\tEXIT FROM THE CHAT")
-
-    await ws.close()
-
-    logging.error("\t\tCLOSED WEBHOOK, END")
-
-    return json_response()
+    return ws
 
 
 @operations.register("leaveChat")
 @jwt_auth
 async def leave_chat(request: Request) -> Response:
-    logging.error("\t\tLEAVE CHAT")
+    user_id = request["user_id"]
     with openapi_context(request) as context:
         chat_id = context.parameters.path["chat_id"]
     try:
         chat_id = uuid.UUID(chat_id)
     except ValueError:
-        raise ValidationError()
+        logger.error("INVALID CHAT ID: %s", chat_id)
+        raise ValidationError(message="Invalid chat_id")
 
-    await request.app["chats"].stop(chat_id)
+    try:
+        await request.app["chats_list"].close_chat(chat_id, user_id)
+    except ChatsList.ChatNotFoundError:
+        pass
 
     return json_response()
 
 
 @operations.register("getPublicUserInfo")
 async def get_public_user_info(request: Request) -> Response:
-    logging.error("\t\tGET PUBLIC USER INFO")
     with openapi_context(request) as context:
         username = context.parameters.path["username"]
 
@@ -180,9 +180,10 @@ async def get_public_user_info(request: Request) -> Response:
     async with db.get_session(request) as session:
         try:
             user = await get_user(session, username=username)
-            displayed_name = user.displayed_name
         except NoResultFound:
+            logger.error("USER %s IS NOT FOUND!", username)
             raise ObjectDoesNotExist(label="User")
+    displayed_name = user.displayed_name
 
     # Send profile data to the user
     return json_response({
@@ -193,17 +194,17 @@ async def get_public_user_info(request: Request) -> Response:
 @operations.register("getAllUserInfo")
 @jwt_auth
 async def get_all_user_info(request: Request) -> Response:
-    logging.error("\t\tGET ALL USER INFO")
     user_id = request['user_id']
 
     # Get profile data
     async with db.get_session(request) as session:
         try:
             user = await get_user(session, user_id=user_id)
-            displayed_name = user.displayed_name
-            username = user.username
         except NoResultFound:
+            logger.error("USER %s IS NOT FOUND!", user_id)
             raise ObjectDoesNotExist(label="User")
+    displayed_name = user.displayed_name
+    username = user.username
 
     # Send profile data to the user
     return json_response({
@@ -219,7 +220,6 @@ async def get_all_user_info(request: Request) -> Response:
 @operations.register("modifyAllUserInfo")
 @jwt_auth
 async def modify_all_user_info(request: Request) -> Response:
-    logging.error("\t\tMODIFY ALL USER INFO")
     user_id = request['user_id']
     with openapi_context(request) as context:
         try:
@@ -228,7 +228,7 @@ async def modify_all_user_info(request: Request) -> Response:
             private_info = context.data['private']
             username = private_info['username']
         except KeyError:
-            raise ValidationError()
+            raise ValidationError(message="Wrong body schema")
 
     # Change profile data
     async with db.get_session(request) as session:
@@ -242,9 +242,9 @@ async def modify_all_user_info(request: Request) -> Response:
 
 @operations.register("clearRuntime")
 async def clear_runtime(request: Request) -> Response:
-    request.app["chats"].chats.clear()
+    request.app["chats_list"].chats.clear()
     request.app["lobby"].waiting.clear()
-    logging.error("\n\n\n\n\t\tRUNTIME CLEARED\n\n\n")
+    print("\n\n\n\t\tRUNTIME CLEARED\n\n\n", flush=True)
     return Response(text="RUNTIME CLEARED")
 
 
@@ -254,7 +254,7 @@ async def clear_db(request: Request) -> Response:
         query = delete(db.User)
         await session.execute(query)
         await session.commit()
-    logging.error("\n\n\n\n\t\tDB CLEARED\n\n\n")
+    print("\n\n\n\t\tDB CLEARED\n\n\n", flush=True)
     return Response(text="DB CLEARED")
 
 

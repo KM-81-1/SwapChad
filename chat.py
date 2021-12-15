@@ -1,122 +1,75 @@
-import asyncio
 import uuid
+from asyncio import Event
 from aiohttp import WSMsgType
+import logging
+
+from aiohttp.http_websocket import WS_CLOSING_MESSAGE
+
+logger = logging.getLogger(__name__)
 
 
 class Chat:
-    def __init__(self):
-        self.stopped = False
+    def __init__(self, chat_id):
+        self.chat_id = chat_id
         self.clients = dict()
-        self.runner = None
+        self.is_closing = Event()
 
-    async def stop(self):
-        if self.stopped:
-            return
-        self.stopped = True
-        for client in self.clients.values():
-            try:
-                await client.send_str("CHAT STOPPED")
-                await client.close()
-            except ConnectionResetError:
-                pass
-
-    async def handle_update(self, from_id, update):
-        print("\t\tUPDATE FROM %s: %s" % (str(from_id), str(update)))
-        if update.type == WSMsgType.TEXT:
-            for user_id, client in self.clients.items():
-                if user_id != from_id:
-                    await client.send_str(update.data)
-
-    async def connect(self, user_id, ws):
-        """ Adds user to the chat """
+    async def connect_and_stay(self, user_id, ws):
         self.clients[user_id] = ws
 
-        async for update in ws:
-            await self.handle_update(user_id, update)
+        logger.info("CHAT %d: USER %d CONNECTED", self.chat_id, user_id)
 
-        return ws
+        try:
+            async for update in ws:
+                if update.type == WSMsgType.TEXT:
+                    await self.handle_message(user_id, update)
+        except Exception as e:
+            print("WS EXC: " + str(e))
 
+        logger.info("CHAT %s: USER %s WEBSOCKET WAS CLOSED", self.chat_id, user_id)
+        await self.close(user_id)
+        logger.info("CHAT %s: USER %s EXITS", self.chat_id, user_id)
 
-class PendingUser:
-    def __init__(self, user_id):
-        self.user_id = user_id
-        self.event = asyncio.Event()
-        self.chat_id = None
+    async def close(self, by_user_id):
+        if not self.is_closing.is_set():
+            self.is_closing.set()
+            logger.info("CHAT %s: USER %s SET CLOSING FLAG, CLOSING ALL WEBSOCKETS", self.chat_id, by_user_id)
+            for user_id, ws in self.clients.items():
+                logger.info("CHAT %s: \tCLOSING USER %s WEBSOCKET", self.chat_id, user_id)
+                ws._reader.feed_data(WS_CLOSING_MESSAGE, 0)
+            logger.info("CHAT %s: USER %s CLOSED ALL WEBSOCKETS", self.chat_id, by_user_id)
 
-    async def obtain_chat(self):
-        await self.event.wait()
-        return self.chat_id
-
-    def send_chat_id(self, chat_id):
-        self.chat_id = chat_id
-        self.event.set()
-
-
-class Lobby:
-    def __init__(self, chats):
-        self.waiting = []
-        self.chats = chats
-
-    class AlreadySearchingError(Exception):
-        pass
-
-    def match(self, new_pending_user):
-        print("\t\tTRYING TO MATCH %s" % str(new_pending_user.user_id))
-        for i, _potential_companion in enumerate(self.waiting):
-            if True:  # TODO matching
-                print("\t\tMATCHED WITH %s" % str(_potential_companion.user_id))
-                (client_1, client_2) = new_pending_user, self.waiting.pop(i)
-                new_chat_id = self.chats.start()
-                client_1.send_chat_id(new_chat_id)
-                client_2.send_chat_id(new_chat_id)
-                return
-        print("\t\tNO COMPANIONS FOR %s, WAITING..." % str(new_pending_user.user_id))
-        self.waiting.append(new_pending_user)
-
-    async def find_chat(self, user_id):
-        print("\t\tFINDING CHAT FOR %s" % str(user_id))
-        for i, waiting_user in enumerate(self.waiting):
-            if waiting_user.user_id == user_id:
-                self.waiting.pop(i)
-                print("\t\tFOUND OLD FOR %s, REMOVING" % str(user_id))
-                raise Lobby.AlreadySearchingError
-        print("\t\tCALLING MATCH FOR %s" % str(user_id))
-        new_pending_user = PendingUser(user_id)
-        self.match(new_pending_user)
-        chat_id = await new_pending_user.obtain_chat()
-        print("\t\tFOUND CHAT FOR %s" % str(user_id))
-        return chat_id
-
-    def abort_search(self, user_id):
-        for i, pending_user in enumerate(self.waiting):
-            if pending_user.user_id == user_id:
-                print("\t\tABORTED SEARCH FOR %s" % str(user_id))
-                self.waiting.pop(i)
-                break
+    async def handle_message(self, from_id, update):
+        logger.info("CHAT %s: HANDLING UPDATE FROM USER %s", self.chat_id, from_id)
+        for user_id, ws in self.clients.items():
+            if user_id != from_id:
+                await ws.send_str(update.data)
+                logger.info("CHAT %s: \tBROADCAST TO USER %s", self.chat_id, user_id)
 
 
-class Chats:
+class ChatsList:
     def __init__(self):
-        self.chats = dict()
+        self.chats = {}
 
     class ChatNotFoundError(Exception):
         pass
 
-    def start(self):
-        new_chat = Chat()
+    def create_new(self):
         new_chat_id = uuid.uuid4()
+        new_chat = Chat(new_chat_id)
         self.chats[new_chat_id] = new_chat
         return new_chat_id
-
-    async def stop(self, chat_id):
-        try:
-            await self.chats[chat_id].stop()
-            self.chats.pop(chat_id)
-        except KeyError:
-            pass
 
     def find_chat(self, chat_id):
         try:
             return self.chats[chat_id]
         except KeyError:
-            raise Chats.ChatNotFoundError()
+            raise self.ChatNotFoundError()
+
+    async def close_chat(self, chat_id, user_id):
+        try:
+            chat = self.chats.pop(chat_id)
+        except KeyError:
+            raise self.ChatNotFoundError()
+
+        await chat.close(user_id)
