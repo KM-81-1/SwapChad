@@ -59,7 +59,7 @@ class Lobby:
             return chat_id
 
     def abort_search(self, user_id):
-        if self.pending is None:
+        if self.pending is None or self.pending.user_id != user_id:
             raise self.WasNotSearchingError()
 
         self.pending.send(None)
