@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from os import getenv
 from typing import Callable, Awaitable
@@ -5,10 +6,12 @@ from aiohttp import web
 import aiohttp_swagger
 import rororo
 import logging
+import logging.config
 
 import db
 from chat import Lobby, Chats
 import api_views
+import context_id_hook
 
 
 async def create_components(app):
@@ -27,15 +30,57 @@ async def error_middleware(
     try:
         return await handler(request)
     except web.HTTPException as exc:
-        logging.error(exc)
-        print()
+        logging.getLogger("rororo").error(exc.text)
         return exc
 
 
+def init_logging():
+    context_id_hook.setup()
+
+    logging.config.dictConfig({
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+                "level": "DEBUG",
+                "stream": sys.stdout,
+            },
+        },
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s %(levelname)8s %(requestIdPrefix)-10s %(name)-20s %(message)s"
+            },
+            "without_time": {
+                "format": "%(message)s"
+            },
+        },
+        "root": {
+            "level": "INFO",
+            "handlers": ["stdout"],
+            "formatters": ["naked"],
+        }
+    })
+
+    for handler in logging.getLogger().handlers:
+        _emit = handler.emit
+
+        def emit(record):
+            if (str(record.__dict__.get("first_request_line")) + ".").split()[0] == "OPTIONS":
+                return
+            _emit(record)
+            if record.__dict__.get("name") == 'aiohttp.access':
+                print()
+
+        handler.emit = emit
+
+
 async def create_app():
-    app = web.Application(middlewares=[error_middleware])
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger("asyncio.access").setLevel(logging.DEBUG)
+
+    init_logging()
+
+    app = web.Application(middlewares=[context_id_hook.middleware, error_middleware])
 
     # Connect to DB
     await db.connect(app, getenv("DATABASE_URL"))
@@ -47,8 +92,6 @@ async def create_app():
     rororo.setup_settings(
         app,
         rororo.BaseSettings(),
-        loggers=("aiohttp", "aiohttp_middlewares", "petstore", "rororo"),
-        remove_root_handlers=True,
     )
 
     rororo.setup_openapi(
@@ -89,4 +132,5 @@ async def create_app():
 if __name__ == '__main__':
     web.run_app(create_app(),
                 host=getenv("HOST", "127.0.0.1"),
-                port=getenv("PORT", 80))
+                port=getenv("PORT", 80),
+                access_log_class=context_id_hook.AccessLogClass)
