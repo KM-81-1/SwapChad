@@ -27,6 +27,8 @@
         }
 
         async function do_request(elem_id, method, url, body, token) {
+            insert_req_resp_template(elem_id);
+
             let req_resp = document.getElementById(elem_id + "_req_resp");
             let status = req_resp.getElementsByClassName("status")[0];
             let req = req_resp.getElementsByClassName("request");
@@ -114,7 +116,6 @@
             }
 
             document.getElementById("public_user_info_dispname").innerText = "";
-            insert_req_resp_template("public_user_info");
 
             do_request("public_user_info", "GET", api_url + "users/" + username, undefined).
             then(([code, body]) => {
@@ -135,7 +136,6 @@
             }
 
             document.getElementById("cached_token").innerText = "";
-            insert_req_resp_template("auth");
 
             do_request("auth", "POST", api_url + "auth/signup", {
                 "displayed_name": dispname,
@@ -159,7 +159,6 @@
             }
 
             document.getElementById("cached_token").innerText = "";
-            insert_req_resp_template("auth");
 
             do_request("auth", "POST", api_url + "auth/login", {
                 "username": username,
@@ -191,7 +190,6 @@
 
             document.getElementById("all_user_info_dispname").innerText = "";
             document.getElementById("all_user_info_username").innerText = "";
-            insert_req_resp_template("all_user_info");
 
             do_request("all_user_info", "GET", api_url + "profile", undefined, token).
             then(([code, body]) => {
@@ -221,7 +219,6 @@
 
             document.getElementById("all_user_info_dispname").innerText = "";
             document.getElementById("all_user_info_username").innerText = "";
-            insert_req_resp_template("all_user_info");
 
             do_request("all_user_info", "PUT", api_url + "profile", {
                 "public": {
@@ -247,7 +244,6 @@
             }
 
             document.getElementById("chat_id").innerText = "";
-            insert_req_resp_template("chats");
 
             do_request("chats", "POST", api_url + "chats/start-search", undefined, token).
             then(([code, body]) => {
@@ -267,8 +263,6 @@
                 alert("Must provide token!");
                 return;
             }
-
-            insert_req_resp_template("chats");
 
             do_request("chats", "POST", api_url + "chats/abort-search", undefined, token).
             then(([_code, _body]) => {
@@ -350,8 +344,6 @@
                 return;
             }
 
-            insert_req_resp_template("chats");
-
             do_request("chats", "POST", api_url + "chat/" + chat_id + "/leave", undefined, token).
             then(([code, _body]) => {
                 if (code === 200) {
@@ -360,10 +352,39 @@
                 }
             });
         }
+
+        function clear_runtime() {
+            do_request("clear_runtime", "GET", api_url + "clear/runtime", undefined).
+            then(([_code, _body]) => {
+            });
+        }
+
+        function clear_db() {
+            do_request("clear_db", "GET", api_url + "clear/db", undefined).
+            then(([_code, _body]) => {
+            });
+        }
+
     </script>
 </head>
 <body>
     <h2><a href="/">Back to main page</a></h2>
+
+    <details>
+        <summary>Administrative</summary>
+        <ul>
+            <li>
+                <button onclick="clear_runtime()">Clear runtime</button>
+                <div id="clear_runtime_req_resp"></div>
+                <br>
+            </li>
+            <li>
+                <button onclick="clear_db()">Clear db</button>
+                <div id="clear_db_req_resp"></div>
+            </li>
+        </ul>
+
+    </details>
 
     <div id="public_user_info">
         <h3>Public user info</h3>
