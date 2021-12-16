@@ -223,9 +223,9 @@ async def modify_all_user_info(request: Request) -> Response:
 
 @operations.register("clearRuntime")
 async def clear_runtime(request: Request) -> Response:
-    for chat in request.app["chats_list"].values():
+    for chat in request.app["chats_list"].chats.values():
         await chat.close(None)
-    request.app["chats_list"].clear()
+    request.app["chats_list"].chats.clear()
 
     lobby = request.app["lobby"]
     if lobby.pending is not None:
