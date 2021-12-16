@@ -244,6 +244,8 @@
             }
 
             document.getElementById("chat_id").innerText = "";
+            document.getElementById("authentication").hidden = true;
+            document.getElementById("all_user_info").hidden = true;
 
             do_request("chats", "POST", api_url + "chats/start-search", undefined, token).
             then(([code, body]) => {
@@ -265,7 +267,11 @@
             }
 
             do_request("chats", "POST", api_url + "chats/abort-search", undefined, token).
-            then(([_code, _body]) => {
+            then(([code, _body]) => {
+                if (code === 200) {
+                    document.getElementById("authentication").hidden = false;
+                    document.getElementById("all_user_info").hidden = false;
+                }
             });
         }
 
