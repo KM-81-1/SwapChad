@@ -92,22 +92,6 @@
             chat_messages.appendChild(new_message);
         }
 
-        function close_chat(by) {
-            let chat_status = document.getElementById("chat_status");
-            let chat_messages = document.getElementById("chat_messages");
-            let your_message = document.getElementById("your_message");
-            ws = null;
-            document.getElementById("chat_id").innerText = "";
-            chat_status.innerText = "Chat was closed by " + by;
-            chat_messages.innerHTML = '';
-            your_message.value = "";
-
-            document.getElementById("authentication").hidden = false;
-            document.getElementById("all_user_info").hidden = false;
-            document.getElementById("chats").hidden = false;
-            document.getElementById("chat").hidden = true;
-        }
-
         function get_public_user_info() {
             let username = document.getElementById("public_user_info_username").value;
             if (username.trim() === "") {
@@ -254,7 +238,7 @@
 
                     document.getElementById("chat").hidden = false;
 
-                    join_chat()
+                    join_chat(body['chat_id'])
                 }
             });
         }
@@ -275,20 +259,14 @@
             });
         }
 
-        function join_chat() {
+        function join_chat(chat_id) {
             let token = document.getElementById("cached_token").innerText;
             if (token.trim() === "") {
                 alert("Must provide token!");
                 return;
             }
 
-            let chat_id = document.getElementById("chat_id").innerText;
-            if (chat_id.trim() === "") {
-                alert("Must provide chat id!");
-                return;
-            }
-
-            let chat_status = document.getElementById("chat_status")
+            let chat_status = document.getElementById("chat_status");
 
             chat_status.innerText = "Connecting...";
             ws = new WebSocket(api_url.replace("http", "ws") + "chat/" + chat_id);
@@ -303,7 +281,7 @@
             ws.onmessage = (event) => {
                 chat_status.innerText = "Received " + event.type;
                 if (event.type === "message") {
-                    add_message("REMOTE", event.data);
+                    add_message("ANON", event.data);
                 }
             };
 
@@ -314,7 +292,20 @@
             };
 
             ws.onclose = (_event) => {
-                close_chat("REMOTE");
+                ws = null;
+
+                let chat_status = document.getElementById("chat_status");
+                let chat_messages = document.getElementById("chat_messages");
+                let your_message = document.getElementById("your_message");
+
+                chat_status.innerText = "Anon left the chat";
+                chat_messages.innerHTML = '';
+                your_message.value = "";
+
+                document.getElementById("authentication").hidden = false;
+                document.getElementById("all_user_info").hidden = false;
+                document.getElementById("chats").hidden = false;
+                document.getElementById("chat").hidden = true;
             };
         }
 
@@ -333,30 +324,8 @@
         }
 
         function leave_chat() {
-            if (ws === null) {
-                alert("Must be in chat!");
-                return;
-            }
-
-            let token = document.getElementById("cached_token").innerText;
-            if (token.trim() === "") {
-                alert("Must provide token!");
-                return;
-            }
-
-            let chat_id = document.getElementById("chat_id").innerText;
-            if (chat_id.trim() === "") {
-                alert("Must provide chat id!");
-                return;
-            }
-
-            do_request("chats", "POST", api_url + "chat/" + chat_id + "/leave", undefined, token).
-            then(([code, _body]) => {
-                if (code === 200) {
-                    ws.onclose = undefined;
-                    close_chat("YOU");
-                }
-            });
+            ws.close();
+            document.getElementById("chat_status").innerText = "You left the chat";
         }
 
         function clear_runtime() {

@@ -65,11 +65,3 @@ class ChatsList:
             return self.chats[chat_id]
         except KeyError:
             raise self.ChatNotFoundError()
-
-    async def close_chat(self, chat_id, user_id):
-        try:
-            chat = self.chats.pop(chat_id)
-        except KeyError:
-            raise self.ChatNotFoundError()
-
-        await chat.close(user_id)

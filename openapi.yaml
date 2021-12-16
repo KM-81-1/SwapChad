@@ -137,31 +137,6 @@ paths:
           $ref: '#/components/responses/IncorrectRequest'
 
 
-  /chat/{chat_id}/leave:
-    post:
-      description: Выход из чата
-      operationId: leaveChat
-      tags: ["chats"]
-      parameters:
-        - description: Id чата
-          name: chat_id
-          in: path
-          required: true
-          schema:
-            type: string
-      security:
-        - jwtAuth: []
-      responses:
-        '200':
-          description: Чат прекращён
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '405':
-          $ref: '#/components/responses/MethodNotAllowed'
-        '422':
-          $ref: '#/components/responses/IncorrectRequest'
-
-
   /users/{username}:
     get:
       description: Получить публичные данные пользователя

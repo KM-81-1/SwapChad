@@ -149,26 +149,6 @@ async def join_chat(request: Request) -> Response:
     return Response()
 
 
-@operations.register("leaveChat")
-@jwt_auth
-async def leave_chat(request: Request) -> Response:
-    user_id = request["user_id"]
-    with openapi_context(request) as context:
-        chat_id = context.parameters.path["chat_id"]
-    try:
-        chat_id = uuid.UUID(chat_id)
-    except ValueError:
-        logger.error("INVALID CHAT ID: %s", chat_id)
-        raise ValidationError(message="Invalid chat_id")
-
-    try:
-        await request.app["chats_list"].close_chat(chat_id, user_id)
-    except ChatsList.ChatNotFoundError:
-        pass
-
-    return json_response()
-
-
 @operations.register("getPublicUserInfo")
 async def get_public_user_info(request: Request) -> Response:
     with openapi_context(request) as context:
@@ -243,9 +223,9 @@ async def modify_all_user_info(request: Request) -> Response:
 
 @operations.register("clearRuntime")
 async def clear_runtime(request: Request) -> Response:
-    chats_list = request.app["chats_list"]
-    while chats_list.chats:
-        await chats_list.close_chat(list(chats_list.chats.keys())[0], None)
+    for chat in request.app["chats_list"].values():
+        await chat.close(None)
+    request.app["chats_list"].clear()
 
     lobby = request.app["lobby"]
     if lobby.pending is not None:
