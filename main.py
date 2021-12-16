@@ -105,7 +105,7 @@ async def create_app():
     # Initialize aiohttp_swagger lib
     def _swagger_def_def_decor(_def_func):
         def def_func(_request):
-            return web.HTTPTemporaryRedirect('/api/openapi.json')
+            return web.HTTPFound('/api/openapi.json')
         return def_func
     from typing import Optional
     _swagger_def_def_decor: Optional[...] = _swagger_def_def_decor
@@ -116,13 +116,13 @@ async def create_app():
         ui_version=3,
     )
 
-    # Serve static files
-    app.router.add_static("/web", "static")
-
     # Redirect to landing
     async def _landing_redirect(_request):
-        return web.HTTPTemporaryRedirect('web/index.html')
+        return web.HTTPFound('index.html')
     app.router.add_route("get", "/", handler=_landing_redirect)
+
+    # Serve static files
+    app.router.add_static("/", "static")
 
     # Binding initialization coroutines
     app.on_startup.append(create_components)
