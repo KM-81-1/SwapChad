@@ -5,6 +5,7 @@
     <title>API Test</title>
 
     <template id="req_resp_template">
+        <br>
         Status: <b class="status">NOT YET PERFORMED</b>
         <details>
             <summary>Request and response details</summary>
@@ -17,9 +18,11 @@
             <pre class="response"></pre>
         </details>
         <button onclick="this.parentNode.innerHTML=''">Clear result</button>
+        <br>
     </template>
 
     <script>
+
         function insert_req_resp_template(elem_id) {
             let elem = document.getElementById(elem_id + "_req_resp");
             elem.innerHTML = "";
@@ -72,7 +75,7 @@
         }
 
         var ws = null;
-        var api_url = window.location.origin + "/api/";
+        var api_url = window.location.origin + "/api";
 
         function add_message(sender, text) {
             let chat_messages = document.getElementById("chat_messages");
@@ -101,7 +104,7 @@
 
             document.getElementById("public_user_info_dispname").innerText = "";
 
-            do_request("public_user_info", "GET", api_url + "users/" + username, undefined).
+            do_request("public_user_info", "GET", `${api_url}/users/${username}`, undefined).
             then(([code, body]) => {
                 if (code === 200) {
                     document.getElementById("public_user_info_dispname").innerText = body['displayed_name'];
@@ -110,101 +113,115 @@
         }
 
         function register() {
-            let dispname = document.getElementById("cached_dispname").value;
-            let username = document.getElementById("cached_username").value;
-            let password = document.getElementById("cached_password").value;
+            let dispname = document.getElementById("dispname").value;
+            let username = document.getElementById("username").value;
+            let password = document.getElementById("password").value;
 
             if (dispname.trim() === "" || username.trim() === "" || password.trim() === "") {
                 alert("Must specify dispname, username, password!");
                 return;
             }
 
-            document.getElementById("cached_token").innerText = "";
+            document.getElementById("token").innerText = "";
 
-            do_request("auth", "POST", api_url + "auth/signup", {
+            do_request("auth", "POST", `${api_url}/auth/signup`, {
                 "displayed_name": dispname,
                 "username": username,
                 "password": password,
             }).
             then(([code, body]) => {
                 if (code === 200) {
-                    document.getElementById("cached_token").innerText = body['token'];
+                    document.getElementById("login").hidden = true;
+                    document.getElementById("logged_in").hidden = false;
+                    document.getElementById("login_status").innerText = username
+                    document.getElementById("token").innerText = body['token'];
+                    document.getElementById("all_user_info").hidden = false;
+                    document.getElementById("chats").hidden = false;
                 }
             });
         }
 
         function login() {
-            let username = document.getElementById("cached_username").value;
-            let password = document.getElementById("cached_password").value;
+            let username = document.getElementById("username").value;
+            let password = document.getElementById("password").value;
+
+            logout();
 
             if (username.trim() === "" || password.trim() === "") {
                 alert("Must specify username and password!");
                 return;
             }
 
-            document.getElementById("cached_token").innerText = "";
+            document.getElementById("token").innerText = "";
 
-            do_request("auth", "POST", api_url + "auth/login", {
+            do_request("auth", "POST", `${api_url}/auth/login`, {
                 "username": username,
                 "password": password,
             }).
             then(([code, body]) => {
                 if (code === 200) {
-                    document.getElementById("cached_token").innerText = body['token'];
+                    document.getElementById("login").hidden = true;
+                    document.getElementById("logged_in").hidden = false;
+                    document.getElementById("login_status").innerText = username
+                    document.getElementById("token").innerText = body['token'];
+                    document.getElementById("all_user_info").hidden = false;
+                    document.getElementById("chats").hidden = false;
                 }
-
-                document.getElementById("all_user_info").hidden = false;
-                document.getElementById("chats").hidden = false;
             });
         }
 
         function logout() {
-            document.getElementById("cached_token").innerText = "";
+            document.getElementById("login").hidden = false;
+            document.getElementById("logged_in").hidden = true;
+            document.getElementById("token").innerText = "";
+            document.getElementById("dispname").value = "";
+            document.getElementById("password").value = "";
             document.getElementById("all_user_info").hidden = true;
             document.getElementById("chats").hidden = true;
             document.getElementById("chat").hidden = true;
         }
 
         function get_all_user_info() {
-            let token = document.getElementById("cached_token").innerText;
+            let token = document.getElementById("token").innerText;
             if (token.trim() === "") {
                 alert("Must provide token!");
                 return;
             }
 
-            document.getElementById("all_user_info_dispname").innerText = "";
-            document.getElementById("all_user_info_username").innerText = "";
+            document.getElementById("all_user_info_dispname").value = "";
+            document.getElementById("all_user_info_username").value = "";
 
-            do_request("all_user_info", "GET", api_url + "profile", undefined, token).
+            do_request("all_user_info", "GET", `${api_url}/profile`, undefined, token).
             then(([code, body]) => {
                 if (code === 200) {
                     let public_info = body['public'];
-                    document.getElementById("all_user_info_dispname").innerText = public_info['displayed_name'];
+                    document.getElementById("all_user_info_dispname").value = public_info['displayed_name'];
                     let private_info = body['private'];
-                    document.getElementById("all_user_info_username").innerText = private_info['username'];
+                    document.getElementById("all_user_info_username").value = private_info['username'];
+                    document.getElementById("modify_all_user_info_button").hidden = false
                 }
             });
         }
 
         function modify_all_user_info() {
-            let token = document.getElementById("cached_token").innerText;
+            let token = document.getElementById("token").innerText;
             if (token.trim() === "") {
                 alert("Must provide token!");
                 return;
             }
 
-            let dispname = document.getElementById("cached_dispname").value;
-            let username = document.getElementById("cached_username").value;
+            let dispname = document.getElementById("all_user_info_dispname").value;
+            let username = document.getElementById("all_user_info_username").value;
 
             if (dispname.trim() === "" || username.trim() === "") {
                 alert("Must specify dispname and username!");
                 return;
             }
 
-            document.getElementById("all_user_info_dispname").innerText = "";
-            document.getElementById("all_user_info_username").innerText = "";
+            document.getElementById("all_user_info_dispname").value = "";
+            document.getElementById("all_user_info_username").value = "";
 
-            do_request("all_user_info", "PUT", api_url + "profile", {
+            do_request("all_user_info", "PUT", `${api_url}/profile`, {
                 "public": {
                     "displayed_name": dispname,
                 },
@@ -214,29 +231,29 @@
             }, token).
             then(([code, _body]) => {
                 if (code === 200) {
-                    document.getElementById("all_user_info_dispname").innerText = dispname;
-                    document.getElementById("all_user_info_username").innerText = username;
+                    document.getElementById("all_user_info_dispname").value = dispname;
+                    document.getElementById("all_user_info_username").value = username;
                 }
             });
         }
 
         function start_search() {
-            let token = document.getElementById("cached_token").innerText;
+            let token = document.getElementById("token").innerText;
             if (token.trim() === "") {
                 alert("Must provide token!");
                 return;
             }
 
-            document.getElementById("chat_id").innerText = "";
             document.getElementById("authentication").hidden = true;
             document.getElementById("all_user_info").hidden = true;
+            document.getElementById("start_search").hidden = true;
+            document.getElementById("started_search").hidden = false;
 
-            do_request("chats", "POST", api_url + "chats/start-search", undefined, token).
+            do_request("chats", "POST", `${api_url}/chats/start-search`, undefined, token).
             then(([code, body]) => {
                 if (code === 200) {
-                    document.getElementById("chat_id").innerText = body['chat_id'];
-
                     document.getElementById("chat").hidden = false;
+                    document.getElementById("started_search").hidden = true;
 
                     join_chat(body['chat_id'])
                 }
@@ -244,23 +261,25 @@
         }
 
         function abort_search() {
-            let token = document.getElementById("cached_token").innerText;
+            let token = document.getElementById("token").innerText;
             if (token.trim() === "") {
                 alert("Must provide token!");
                 return;
             }
 
-            do_request("chats", "POST", api_url + "chats/abort-search", undefined, token).
+            do_request("chats", "POST", `${api_url}/chats/abort-search`, undefined, token).
             then(([code, _body]) => {
                 if (code === 200) {
                     document.getElementById("authentication").hidden = false;
                     document.getElementById("all_user_info").hidden = false;
+                    document.getElementById("start_search").hidden = false;
+                    document.getElementById("started_search").hidden = true;
                 }
             });
         }
 
         function join_chat(chat_id) {
-            let token = document.getElementById("cached_token").innerText;
+            let token = document.getElementById("token").innerText;
             if (token.trim() === "") {
                 alert("Must provide token!");
                 return;
@@ -269,7 +288,7 @@
             let chat_status = document.getElementById("chat_status");
 
             chat_status.innerText = "Connecting...";
-            ws = new WebSocket(api_url.replace("http", "ws") + "chat/" + chat_id);
+            ws = new WebSocket(`${api_url.replace("http", "ws")}/chat/${chat_id}`);
             ws.onopen = (_event) => {
                 document.getElementById("authentication").hidden = true;
                 document.getElementById("all_user_info").hidden = true;
@@ -305,6 +324,7 @@
                 document.getElementById("authentication").hidden = false;
                 document.getElementById("all_user_info").hidden = false;
                 document.getElementById("chats").hidden = false;
+                document.getElementById("start_search").hidden = false;
                 document.getElementById("chat").hidden = true;
             };
         }
@@ -321,6 +341,7 @@
             ws.send(text)
             chat_status.innerText = "Sent message";
             add_message("YOU", text);
+            your_message.value = "";
         }
 
         function leave_chat() {
@@ -329,13 +350,13 @@
         }
 
         function clear_runtime() {
-            do_request("clear_runtime", "GET", api_url + "clear/runtime", undefined).
+            do_request("clear_runtime", "GET", `${api_url}/clear/runtime`, undefined).
             then(([_code, _body]) => {
             });
         }
 
         function clear_db() {
-            do_request("clear_db", "GET", api_url + "clear/db", undefined).
+            do_request("clear_db", "GET", `${api_url}/clear/db`, undefined).
             then(([_code, _body]) => {
             });
         }
@@ -372,49 +393,57 @@
         <br>
     </details>
 
-
     <div id="authentication">
         <h3>Authentication</h3>
-        <label>Cached dispname: <input type="text" id="cached_dispname"></label><br>
-        <label>Cached username: <input type="text" id="cached_username"></label><br>
-        <label>Cached password: <input type="text" id="cached_password"></label><br>
-        <br><label>Cached token:</label>
-        <pre id="cached_token"></pre>
-        <button onclick="register()">Register</button>
-        <button onclick="login()">Login</button>
-        <button onclick="logout()">Logout</button>
+
+        <div id="login">
+            <label>Username: <input type="text" id="username"></label><br>
+            <label>Password: <input type="text" id="password"></label><br>
+            <button onclick="login()">Login</button>
+            <br>
+            <br><label>Displayed name: <input type="text" id="dispname"></label><br>
+            <button onclick="register()">Register</button>
+        </div>
+
+        <div id="logged_in" hidden>
+            <label>Logged in as <b id="login_status"></b></label>
+            <br>
+            <label>Current token:</label>
+            <pre id="token"></pre>
+            <br>
+            <button onclick="logout()">Logout</button>
+        </div>
+
         <div id="auth_req_resp"></div>
-        <br>
     </div>
 
+    <br>
     <details id="all_user_info" hidden>
         <summary>All user info</summary>
+        <label>Username: <input id="all_user_info_username"></label><br>
+        <label>Displayed name: <input id="all_user_info_dispname"></label><br>
         <button onclick="get_all_user_info()">Get</button>
-        <button onclick="modify_all_user_info()">Modify</button>
-        <br>
-        <label>Displayed name:</label>
-        <pre id="all_user_info_dispname"></pre>
-        <label>Username:</label>
-        <pre id="all_user_info_username"></pre>
-        <div id="all_user_info_req_resp"></div>
-        <br>
-    </details>
+        <button onclick="modify_all_user_info()" id="modify_all_user_info_button" hidden>Modify</button>
 
+        <div id="all_user_info_req_resp"></div>
+    </details>
 
     <div id="chats" hidden>
         <h3>Chats</h3>
-        <button onclick="start_search()">Start search</button>
-        <button onclick="abort_search()">Abort search</button>
-        <br>
-        <label>Chat id:</label>
-        <pre id="chat_id"></pre>
+
+        <div id="start_search">
+            <button onclick="start_search()">Start search</button>
+        </div>
+
+        <div id="started_search" hidden>
+            <button onclick="abort_search()">Abort search</button>
+        </div>
+
         <div id="chats_req_resp"></div>
-        <br>
     </div>
 
     <div id="chat" hidden>
         <h3>Chat</h3>
-        <button onclick="join_chat()">Join chat</button>
         <button onclick="leave_chat()">Leave chat</button>
         <br>
         <label>Status:</label>
