@@ -230,9 +230,20 @@ async def modify_all_user_info(request: Request) -> Response:
         except KeyError:
             raise ValidationError(message="Wrong body schema")
 
-    # Change profile data
     async with db.get_session(request) as session:
+        # Obtain user
         user = await get_user(session, user_id=user_id)
+
+        if username != user.username:
+            # Prevent username conflict
+            try:
+                await get_user(session, username=username)
+            except NoResultFound:
+                pass
+            else:
+                raise ValidationError(message="Username is taken")
+
+        # Change profile data
         user.displayed_name = displayed_name
         user.username = username
         await session.commit()
