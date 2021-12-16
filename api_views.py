@@ -55,9 +55,7 @@ async def login(request: Request) -> Response:
         async with db.get_session(request) as session:
             token = await Auth.login(session, username, password)
     except Auth.WrongCredentials:
-        raise BasicInvalidCredentials(headers={
-            "WWW-Authenticate": "xBasic"
-        })
+        raise BasicInvalidCredentials(headers={"WWW-Authenticate": "xBasic"})
 
     # Send JWT Bearer token to the user
     return json_response({'token': token})
@@ -128,7 +126,7 @@ async def join_chat(request: Request) -> Response:
     except ChatsList.ChatNotFoundError:
         logger.error("CHAT %s NOT FOUND", chat_id)
         await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Chat not found".encode("utf-8"))
-        return ws
+        return Response()
 
     logging.info("CHAT %s FOUND, WAITING FOR TOKEN...", chat_id)
 
@@ -141,14 +139,14 @@ async def join_chat(request: Request) -> Response:
     except Auth.InvalidToken:
         logger.error("INVALID JWT TOKEN: %s", token)
         await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Invalid JWT token".encode("utf-8"))
-        return ws
+        return Response()
 
     logger.info("CONFIRMED TOKEN, IT IS USER %s, CONNECTING...", user_id)
 
     # Perform chatting until exited
     await chat.connect_and_stay(user_id, ws)
 
-    return ws
+    return Response()
 
 
 @operations.register("leaveChat")
@@ -178,11 +176,7 @@ async def get_public_user_info(request: Request) -> Response:
 
     # Get profile info
     async with db.get_session(request) as session:
-        try:
-            user = await get_user(session, username=username)
-        except NoResultFound:
-            logger.error("USER %s IS NOT FOUND!", username)
-            raise ObjectDoesNotExist(label="User")
+        user = await get_user(session, username=username)
     displayed_name = user.displayed_name
 
     # Send profile data to the user
@@ -198,11 +192,7 @@ async def get_all_user_info(request: Request) -> Response:
 
     # Get profile data
     async with db.get_session(request) as session:
-        try:
-            user = await get_user(session, user_id=user_id)
-        except NoResultFound:
-            logger.error("USER %s IS NOT FOUND!", user_id)
-            raise ObjectDoesNotExist(label="User")
+        user = await get_user(session, user_id=user_id)
     displayed_name = user.displayed_name
     username = user.username
 
@@ -238,7 +228,7 @@ async def modify_all_user_info(request: Request) -> Response:
             # Prevent username conflict
             try:
                 await get_user(session, username=username)
-            except NoResultFound:
+            except ValidationError:
                 pass
             else:
                 raise ValidationError(message="Username is taken")
@@ -277,6 +267,10 @@ async def clear_db(request: Request) -> Response:
 
 async def get_user(session, **filter_kwargs):
     query = select(db.User).filter_by(**filter_kwargs)
-    result = await session.execute(query)
-    user = result.scalar_one()
+    try:
+        result = await session.execute(query)
+        user = result.scalar_one()
+    except NoResultFound:
+        logger.error("USER IS NOT FOUND!")
+        raise ValidationError(message="User not found")
     return user
