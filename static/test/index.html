@@ -343,6 +343,11 @@
         }
 
         function leave_chat() {
+            if (ws === null) {
+                alert("Must be in chat!");
+                return;
+            }
+
             ws.close();
             document.getElementById("chat_status").innerText = "You left the chat";
         }
