@@ -123,8 +123,9 @@ async def create_app():
     # Serve static files
     app.router.add_static("/", "static")
 
-    # Binding initialization coroutines
+    # Binding startup and shutdown tasks
     app.on_startup.append(create_components)
+    app.on_shutdown.append(api_views.disconnect_all)
 
     return app
 

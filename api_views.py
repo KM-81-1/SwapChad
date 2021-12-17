@@ -5,7 +5,7 @@ from aiohttp.web import json_response, Request, Response
 from aiohttp.web_exceptions import HTTPBadRequest
 from aiohttp.web_ws import WebSocketResponse
 from rororo import openapi_context, OperationTableDef
-from rororo.openapi import ObjectDoesNotExist, ValidationError, BasicInvalidCredentials
+from rororo.openapi import ValidationError, BasicInvalidCredentials
 from sqlalchemy import select, delete
 from sqlalchemy.exc import NoResultFound
 
@@ -223,14 +223,7 @@ async def modify_all_user_info(request: Request) -> Response:
 
 @operations.register("clearRuntime")
 async def clear_runtime(request: Request) -> Response:
-    for chat in request.app["chats_list"].chats.values():
-        await chat.close(None)
-    request.app["chats_list"].chats.clear()
-
-    lobby = request.app["lobby"]
-    if lobby.pending is not None:
-        lobby.abort_search(lobby.pending.user_id)
-
+    await disconnect_all(request.app)
     print("\n\n\n\t\tRUNTIME CLEARED\n\n\n", flush=True)
     return Response(text="RUNTIME CLEARED")
 
@@ -254,3 +247,13 @@ async def get_user(session, **filter_kwargs):
         logger.error("USER IS NOT FOUND!")
         raise ValidationError(message="User not found")
     return user
+
+
+async def disconnect_all(app):
+    for chat in app["chats_list"].chats.values():
+        await chat.close(None)
+    app["chats_list"].chats.clear()
+
+    lobby = app["lobby"]
+    if lobby.pending is not None:
+        lobby.abort_search(lobby.pending.user_id)
