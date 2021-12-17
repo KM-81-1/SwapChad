@@ -62,16 +62,28 @@
                 method: method,
                 headers: headers,
                 body: body,
+            }).
+            catch((_) => {
+                status.innerText = "FAILED TO FETCH";
+                return Promise.reject();
             });
 
-            let response_code = response.status;
             let response_body = await response.json().catch((_) => response.body);
 
-            status.innerText = response_code === 200 ? "OK" : "FAILED";
-            resp[0].innerText = "Code: " + response_code.toString();
+            resp[0].innerText = `Code: ${response.status}`;
             resp[1].innerHTML = "Body:\n" + JSON.stringify(response_body, undefined, 2);
 
-            return [response_code, response_body];
+            if (!response.ok) {
+                let error = response.status.toString();
+                if ("detail" in response_body) {
+                    error += ': ' + response_body["detail"].toString();
+                }
+                status.innerText = `FAILED (${error})`;
+                return Promise.reject();
+            }
+
+            status.innerText = "OK";
+            return response_body;
         }
 
         var ws = null;
@@ -105,11 +117,9 @@
             document.getElementById("public_user_info_dispname").innerText = "";
 
             do_request("public_user_info", "GET", `${api_url}/users/${username}`, undefined).
-            then(([code, body]) => {
-                if (code === 200) {
-                    document.getElementById("public_user_info_dispname").innerText = body['displayed_name'];
-                }
-            });
+            then((body) => {
+                document.getElementById("public_user_info_dispname").innerText = body['displayed_name'];
+            }, () => {});
         }
 
         function register() {
@@ -129,16 +139,14 @@
                 "username": username,
                 "password": password,
             }).
-            then(([code, body]) => {
-                if (code === 200) {
-                    document.getElementById("login").hidden = true;
-                    document.getElementById("logged_in").hidden = false;
-                    document.getElementById("login_status").innerText = username
-                    document.getElementById("token").innerText = body['token'];
-                    document.getElementById("all_user_info").hidden = false;
-                    document.getElementById("chats").hidden = false;
-                }
-            });
+            then((body) => {
+                document.getElementById("login").hidden = true;
+                document.getElementById("logged_in").hidden = false;
+                document.getElementById("login_status").innerText = username
+                document.getElementById("token").innerText = body['token'];
+                document.getElementById("all_user_info").hidden = false;
+                document.getElementById("chats").hidden = false;
+            }, () => {});
         }
 
         function login() {
@@ -158,16 +166,14 @@
                 "username": username,
                 "password": password,
             }).
-            then(([code, body]) => {
-                if (code === 200) {
-                    document.getElementById("login").hidden = true;
-                    document.getElementById("logged_in").hidden = false;
-                    document.getElementById("login_status").innerText = username
-                    document.getElementById("token").innerText = body['token'];
-                    document.getElementById("all_user_info").hidden = false;
-                    document.getElementById("chats").hidden = false;
-                }
-            });
+            then((body) => {
+                document.getElementById("login").hidden = true;
+                document.getElementById("logged_in").hidden = false;
+                document.getElementById("login_status").innerText = username
+                document.getElementById("token").innerText = body['token'];
+                document.getElementById("all_user_info").hidden = false;
+                document.getElementById("chats").hidden = false;
+            }, () => {});
         }
 
         function logout() {
@@ -192,15 +198,13 @@
             document.getElementById("all_user_info_username").value = "";
 
             do_request("all_user_info", "GET", `${api_url}/profile`, undefined, token).
-            then(([code, body]) => {
-                if (code === 200) {
-                    let public_info = body['public'];
-                    document.getElementById("all_user_info_dispname").value = public_info['displayed_name'];
-                    let private_info = body['private'];
-                    document.getElementById("all_user_info_username").value = private_info['username'];
-                    document.getElementById("modify_all_user_info_button").hidden = false
-                }
-            });
+            then((body) => {
+                let public_info = body['public'];
+                document.getElementById("all_user_info_dispname").value = public_info['displayed_name'];
+                let private_info = body['private'];
+                document.getElementById("all_user_info_username").value = private_info['username'];
+                document.getElementById("modify_all_user_info_button").hidden = false;
+            }, () => {});
         }
 
         function modify_all_user_info() {
@@ -229,12 +233,10 @@
                     "username": username,
                 }
             }, token).
-            then(([code, _body]) => {
-                if (code === 200) {
-                    document.getElementById("all_user_info_dispname").value = dispname;
-                    document.getElementById("all_user_info_username").value = username;
-                }
-            });
+            then((_) => {
+                document.getElementById("all_user_info_dispname").value = dispname;
+                document.getElementById("all_user_info_username").value = username;
+            }, () => {});
         }
 
         function start_search() {
@@ -250,13 +252,17 @@
             document.getElementById("started_search").hidden = false;
 
             do_request("chats", "POST", `${api_url}/chats/start-search`, undefined, token).
-            then(([code, body]) => {
-                if (code === 200) {
-                    document.getElementById("chat").hidden = false;
-                    document.getElementById("started_search").hidden = true;
+            then((body) => {
+                document.getElementById("chat").hidden = false;
+                document.getElementById("started_search").hidden = true;
 
-                    join_chat(body['chat_id'])
-                }
+                join_chat(body['chat_id']);
+            }).
+            catch(() => {
+                document.getElementById("authentication").hidden = false;
+                document.getElementById("all_user_info").hidden = false;
+                document.getElementById("start_search").hidden = false;
+                document.getElementById("started_search").hidden = true;
             });
         }
 
@@ -267,15 +273,7 @@
                 return;
             }
 
-            do_request("chats", "POST", `${api_url}/chats/abort-search`, undefined, token).
-            then(([code, _body]) => {
-                if (code === 200) {
-                    document.getElementById("authentication").hidden = false;
-                    document.getElementById("all_user_info").hidden = false;
-                    document.getElementById("start_search").hidden = false;
-                    document.getElementById("started_search").hidden = true;
-                }
-            });
+            do_request("chats", "POST", `${api_url}/chats/abort-search`, undefined, token);
         }
 
         function join_chat(chat_id) {
@@ -350,15 +348,11 @@
         }
 
         function clear_runtime() {
-            do_request("clear_runtime", "GET", `${api_url}/clear/runtime`, undefined).
-            then(([_code, _body]) => {
-            });
+            do_request("clear_runtime", "GET", `${api_url}/clear/runtime`, undefined);
         }
 
         function clear_db() {
-            do_request("clear_db", "GET", `${api_url}/clear/db`, undefined).
-            then(([_code, _body]) => {
-            });
+            do_request("clear_db", "GET", `${api_url}/clear/db`, undefined);
         }
 
     </script>
