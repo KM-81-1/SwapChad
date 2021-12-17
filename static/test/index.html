@@ -348,11 +348,15 @@
         }
 
         function clear_runtime() {
-            do_request("clear_runtime", "GET", `${api_url}/clear/runtime`, undefined);
+            if (confirm("Do you really want to clear runtime (pending & ongoing chats)?")) {
+                do_request("clear_runtime", "GET", `${api_url}/clear/runtime`, undefined);
+            }
         }
 
         function clear_db() {
-            do_request("clear_db", "GET", `${api_url}/clear/db`, undefined);
+            if (confirm("Do you really want to clear db?")) {
+                do_request("clear_db", "GET", `${api_url}/clear/db`, undefined);
+            }
         }
 
     </script>
