@@ -11,7 +11,7 @@ Base = orm.declarative_base(metadata=metadata)
 class User(Base):
     __tablename__ = "user"
     user_id = sa.Column(UUID(as_uuid=True), primary_key=True)
-    username = sa.Column(sa.String, unique=True)
+    username = sa.Column(sa.String, unique=True, nullable=False)
     password = sa.Column(sa.String, nullable=False)
     displayed_name = sa.Column(sa.String, nullable=True)
 
