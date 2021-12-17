@@ -156,8 +156,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublicUserInfo'
-        '404':
-          $ref: '#/components/responses/UserNotFound'
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
@@ -180,10 +178,10 @@ paths:
                 $ref: '#/components/schemas/AllUserInfo'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
-        '404':
-          $ref: '#/components/responses/UserNotFound'
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
 
     put:
       description: Изменить публичные & приватные данные пользователя
