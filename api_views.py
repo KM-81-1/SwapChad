@@ -221,6 +221,22 @@ async def modify_all_user_info(request: Request) -> Response:
     return json_response()
 
 
+@operations.register("deleteUser")
+@jwt_auth
+async def delete_user(request: Request) -> Response:
+    user_id = request['user_id']
+
+    async with db.get_session(request) as session:
+        query = delete(db.User).filter_by(user_id=user_id)
+        result = await session.execute(query)
+        if result.rowcount != 1:
+            logger.error("USER IS NOT FOUND!")
+            raise ValidationError(message="User not found")
+        await session.commit()
+
+    return json_response()
+
+
 @operations.register("clearRuntime")
 async def clear_runtime(request: Request) -> Response:
     await disconnect_all(request.app)

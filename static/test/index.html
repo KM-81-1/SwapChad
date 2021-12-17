@@ -239,6 +239,24 @@
             }, () => {});
         }
 
+        function delete_user() {
+            let token = document.getElementById("token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            if (!confirm("Do you really want to delete your account?")) {
+                return;
+            }
+
+            do_request("all_user_info", "DELETE", `${api_url}/profile/delete`, undefined, token).
+                then((_) => {
+                logout();
+                document.getElementById("username").value = "";
+            }, () => {});
+        }
+
         function start_search() {
             let token = document.getElementById("token").innerText;
             if (token.trim() === "") {
@@ -427,6 +445,7 @@
         <label>Displayed name: <input id="all_user_info_dispname"></label><br>
         <button onclick="get_all_user_info()">Get</button>
         <button onclick="modify_all_user_info()" id="modify_all_user_info_button" hidden>Modify</button>
+        <button onclick="delete_user()">Delete user</button>
 
         <div id="all_user_info_req_resp"></div>
     </details>

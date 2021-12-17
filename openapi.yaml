@@ -206,6 +206,24 @@ paths:
           $ref: '#/components/responses/IncorrectRequest'
 
 
+  /profile/delete:
+    delete:
+      description: Удалить аккаунт
+      operationId: deleteUser
+      tags: [ "all user info" ]
+      security:
+        - jwtAuth: []
+      responses:
+        '200':
+          description: Успешное удаление аккаунта
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+
+
   /clear/runtime:
     get:
       description: Очистка очереди и чатов
