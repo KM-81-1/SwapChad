@@ -118,7 +118,7 @@ paths:
 
   /chat/{chat_id}:
     get:
-      description: Остановка поиска чатов
+      description: Подключение к чату
       operationId: joinChat
       tags: [ "chats" ]
       parameters:
@@ -130,7 +130,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Поиск чатов остановлен
+          description: Подключение прошло успешно
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
