@@ -44,7 +44,7 @@ def init_logging():
         "handlers": {
             "stdout": {
                 "class": "logging.StreamHandler",
-                "formatter": "default",
+                "formatter": ("without_time" if getenv("DYNO") else "default"),
                 "level": "DEBUG",
                 "stream": sys.stdout,
             },
@@ -54,13 +54,12 @@ def init_logging():
                 "format": "%(asctime)s %(levelname)8s %(requestIdPrefix)-10s %(name)-20s %(message)s"
             },
             "without_time": {
-                "format": "%(message)s"
+                "format": "%(levelname)8s %(requestIdPrefix)-10s %(name)-20s %(message)s"
             },
         },
         "root": {
             "level": "INFO",
             "handlers": ["stdout"],
-            "formatters": ["naked"],
         }
     })
 
@@ -134,4 +133,5 @@ if __name__ == '__main__':
     web.run_app(create_app(),
                 host=getenv("HOST", "127.0.0.1"),
                 port=getenv("PORT", 80),
+                access_log_format='%a - "%r": %Ts -> %s',
                 access_log_class=context_id_hook.AccessLogClass)

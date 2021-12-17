@@ -17,7 +17,7 @@ class Chat:
     async def connect_and_stay(self, user_id, ws):
         self.clients[user_id] = ws
 
-        logger.info("CHAT %d: USER %d CONNECTED", self.chat_id, user_id)
+        logger.info("CHAT %d: USER %d CONNECTED\n...", self.chat_id, user_id)
 
         try:
             async for update in ws:
@@ -26,18 +26,18 @@ class Chat:
         except Exception as e:
             print("WS EXC: " + str(e))
 
-        logger.info("CHAT %s: USER %s WEBSOCKET WAS CLOSED", self.chat_id, user_id)
+        logger.info("CHAT %s: USER %s IS LEAVING", self.chat_id, user_id)
         await self.close(user_id)
-        logger.info("CHAT %s: USER %s EXITS", self.chat_id, user_id)
+        logger.info("CHAT %s: USER %s DISCONNECTED", self.chat_id, user_id)
 
     async def close(self, by_user_id):
         if not self.is_closing.is_set():
             self.is_closing.set()
-            logger.info("CHAT %s: USER %s SET CLOSING FLAG, CLOSING ALL WEBSOCKETS", self.chat_id, by_user_id)
+            logger.info("CHAT %s: CLOSING BECAUSE USER %s HAD LEFT", self.chat_id, by_user_id)
             for user_id, ws in self.clients.items():
-                logger.info("CHAT %s: \tCLOSING USER %s WEBSOCKET", self.chat_id, user_id)
+                logger.info("CHAT %s: \tDISCONNECTING USER %s", self.chat_id, user_id)
                 ws._reader.feed_data(WS_CLOSING_MESSAGE, 0)
-            logger.info("CHAT %s: USER %s CLOSED ALL WEBSOCKETS", self.chat_id, by_user_id)
+            logger.info("CHAT %s: CLOSED\n...", self.chat_id)
 
     async def handle_message(self, from_id, update):
         logger.info("CHAT %s: HANDLING UPDATE FROM USER %s", self.chat_id, from_id)
@@ -45,6 +45,7 @@ class Chat:
             if user_id != from_id:
                 await ws.send_str(update.data)
                 logger.info("CHAT %s: \tBROADCAST TO USER %s", self.chat_id, user_id)
+        logger.info("CHAT %s: UPDATE HANDLED\n...")
 
 
 class ChatsList:
