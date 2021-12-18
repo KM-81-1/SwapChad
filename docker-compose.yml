@@ -1,0 +1,30 @@
+version: '3'
+
+services:
+  server:
+    container_name: server
+    build: .
+    ports:
+      - "80:80"
+    depends_on:
+      - db
+    links:
+      - db
+    environment:
+      DATABASE_URL: 'postgres://server:password@db:5432/server_db'
+      WAIT_HOSTS: db:5432
+      HOST: 0.0.0.0
+      PORT: 80
+
+  db:
+    container_name: db
+    image: postgres:latest
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: server
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: server_db
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
