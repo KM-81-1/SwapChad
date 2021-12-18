@@ -116,6 +116,29 @@ paths:
           $ref: '#/components/responses/IncorrectRequest'
 
 
+  /chats/get-saved:
+    get:
+      description: Получение данных о сохранённых чатах
+      operationId: getSavedChats
+      tags: ["chats"]
+      security:
+        - jwtAuth: [ ]
+      responses:
+        '200':
+          description: Данные о сохранённых чатах получены успешно
+          content:
+            application/json:
+              schema:
+                description: Данные о сохранённых чатах
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/SavedChatInfo'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+
+
   /chat/{chat_id}:
     get:
       description: Подключение к чату
@@ -131,6 +154,35 @@ paths:
       responses:
         '200':
           description: Подключение прошло успешно
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/IncorrectRequest'
+
+
+  /chat/{chat_id}/save:
+    post:
+      description: Сохранить чат
+      operationId: saveChat
+      tags: [ "chats" ]
+      security:
+        - jwtAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedChatInfo'
+      parameters:
+        - description: Id чата
+          name: chat_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Чат успешно сохранён
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
         '422':
@@ -224,14 +276,14 @@ paths:
           $ref: '#/components/responses/IncorrectRequest'
 
 
-  /clear/runtime:
+  /clear/lobby:
     get:
-      description: Очистка очереди и чатов
-      operationId: clearRuntime
+      description: Очистка очереди
+      operationId: clearLobby
       tags: [ "administrative" ]
       responses:
         '200':
-          description: Очередь и чаты очищены успешно
+          description: Очередь очищена успешно
 
 
   /clear/db:
@@ -290,6 +342,14 @@ components:
       properties:
         username:
           $ref: '#/components/schemas/Username'
+
+    SavedChatInfo:
+      description: Информация о сохранённом чате
+      type: object
+      properties:
+        title:
+          type: string
+          example: Interesting companion
 
   responses:
     MethodNotAllowed:

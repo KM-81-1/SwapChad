@@ -9,18 +9,13 @@ import logging
 import logging.config
 
 import db
-from chat import ChatsList
 from lobby import Lobby
 import api_views
 import context_id_hook
 
 
 async def create_components(app):
-    chats_list = ChatsList()
-    app["chats_list"] = chats_list
-
-    lobby = Lobby(chats_list)
-    app["lobby"] = lobby
+    app["lobby"] = Lobby()
 
 
 @web.middleware
@@ -77,7 +72,6 @@ def init_logging():
 
 
 async def create_app():
-
     init_logging()
 
     app = web.Application(middlewares=[context_id_hook.middleware, error_middleware])

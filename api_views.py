@@ -11,7 +11,6 @@ from sqlalchemy.exc import NoResultFound
 
 import db
 from lobby import Lobby
-from chat import ChatsList
 from auth import Auth, jwt_auth
 
 logger = logging.getLogger(__name__)
@@ -98,6 +97,24 @@ async def abort_search(request: Request) -> Response:
     return json_response()
 
 
+@operations.register("getSavedChats")
+@jwt_auth
+async def get_saved_chats(request: Request) -> Response:
+    user_id = request["user_id"]
+
+    query = select(db.SavedChat).filter_by(user_id=user_id)
+    async with db.get_session(request) as session:
+        result = await session.execute(query)
+        chats = result.scalars().all()
+
+    return json_response({
+        chat.chat_id.hex: {
+            "title": chat.title,
+        }
+        for chat in chats
+    })
+
+
 @operations.register("joinChat")
 async def join_chat(request: Request) -> Response:
     with openapi_context(request) as context:
@@ -121,9 +138,9 @@ async def join_chat(request: Request) -> Response:
     logger.info("NOW IN WEBSOCKET")
 
     # Obtain chat instance
-    try:
-        chat = request.app["chats_list"].find_chat(chat_id)
-    except ChatsList.ChatNotFoundError:
+    lobby = request.app["lobby"]
+    chat = await lobby.get_chat(request, chat_id)
+    if not chat:
         logger.error("CHAT %s NOT FOUND", chat_id)
         await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Chat not found".encode("utf-8"))
         return Response()
@@ -141,12 +158,44 @@ async def join_chat(request: Request) -> Response:
         await ws.close(code=WSCloseCode.UNSUPPORTED_DATA, message="Invalid JWT token".encode("utf-8"))
         return Response()
 
-    logger.info("CONFIRMED TOKEN, IT IS USER %s, CONNECTING...", user_id)
+    logger.info("CONFIRMED TOKEN, IT IS USER %s, PROCEED...", user_id)
 
     # Perform chatting until exited
-    await chat.connect_and_stay(user_id, ws)
+    await lobby.proceed_with_chat(chat, user_id, ws)
 
     return Response()
+
+
+@operations.register("saveChat")
+@jwt_auth
+async def save_chat(request: Request) -> Response:
+    user_id = request["user_id"]
+
+    # Obtain chat_id and title
+    with openapi_context(request) as context:
+        chat_id = context.parameters.path["chat_id"]
+        try:
+            title = context.data['title']
+        except KeyError:
+            raise ValidationError(message="Wrong body schema")
+    try:
+        chat_id = uuid.UUID(chat_id)
+    except ValueError:
+        logger.error("Invalid chat_id!")
+        raise ValidationError(message="Invalid chat_id")
+
+    # Obtain chat instance
+    chat = await request.app["lobby"].get_chat(request, chat_id)
+    if not chat:
+        logger.error("CHAT %s NOT FOUND", chat_id)
+        raise ValidationError(message="Chat not found")
+
+    # Save chat
+    async with db.get_session(request) as session:
+        await chat.save(db.get_session(request), user_id, title)
+        await session.commit()
+
+    return json_response()
 
 
 @operations.register("getPublicUserInfo")
@@ -237,11 +286,11 @@ async def delete_user(request: Request) -> Response:
     return json_response()
 
 
-@operations.register("clearRuntime")
-async def clear_runtime(request: Request) -> Response:
+@operations.register("clearLobby")
+async def clear_lobby(request: Request) -> Response:
     await disconnect_all(request.app)
-    print("\n\n\n\t\tRUNTIME CLEARED\n\n\n", flush=True)
-    return Response(text="RUNTIME CLEARED")
+    print("\n\n\n\t\tLOBBY CLEARED\n\n\n", flush=True)
+    return Response(text="LOBBY CLEARED")
 
 
 @operations.register("clearDb")
@@ -266,10 +315,6 @@ async def get_user(session, **filter_kwargs):
 
 
 async def disconnect_all(app):
-    for chat in app["chats_list"].chats.values():
-        await chat.close(None)
-    app["chats_list"].chats.clear()
-
     lobby = app["lobby"]
     if lobby.pending is not None:
         lobby.abort_search(lobby.pending.user_id)

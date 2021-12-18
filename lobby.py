@@ -1,12 +1,16 @@
+import uuid
 from asyncio import Event
 import logging
+
+import db
+from chat import Chat
 
 logger = logging.getLogger(__name__)
 
 
 class Lobby:
-    def __init__(self, chats_list):
-        self.chats_list = chats_list
+    def __init__(self):
+        self.chats = {}
         self.pending = None
 
     class Pending:
@@ -34,7 +38,8 @@ class Lobby:
             if self.pending.user_id == user_id:
                 raise self.AlreadySearchingError()
 
-            new_chat_id = self.chats_list.create_new()
+            new_chat_id = uuid.uuid4()
+            self.chats[new_chat_id] = Chat(new_chat_id)
 
             pending = self.pending
             self.pending = None
@@ -43,6 +48,7 @@ class Lobby:
 
             pending.send(new_chat_id)
             return new_chat_id
+
         else:
             pending = self.Pending(user_id)
             self.pending = pending
@@ -64,3 +70,21 @@ class Lobby:
 
         self.pending.send(None)
         self.pending = None
+
+    async def get_chat(self, request, chat_id):
+        chat = self.chats.get(chat_id)
+        if chat:
+            return chat
+
+        chat = await Chat.try_load_saved(db.get_session(request), chat_id)
+        if chat:
+            self.chats[chat_id] = chat
+            return chat
+
+        return None
+
+    async def proceed_with_chat(self, chat, user_id, ws):
+        await chat.proceed(user_id, ws)
+        if not chat.clients:
+            del self.chats[chat.chat_id]
+            logger.info("CHAT %s: ALL USERS HAVE LEFT, CHAT WAS UNLOADED", chat.chat_id)

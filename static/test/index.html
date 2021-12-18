@@ -88,6 +88,7 @@
 
         var ws = null;
         var api_url = window.location.origin + "/api";
+        var current_chat_id = null;
 
         function add_message(sender, text) {
             let chat_messages = document.getElementById("chat_messages");
@@ -182,6 +183,8 @@
             document.getElementById("token").innerText = "";
             document.getElementById("dispname").value = "";
             document.getElementById("password").value = "";
+            document.getElementById("chat_title").value;
+            document.getElementById("saved_chats").innerHTML = "";
             document.getElementById("all_user_info").hidden = true;
             document.getElementById("chats").hidden = true;
             document.getElementById("chat").hidden = true;
@@ -271,7 +274,6 @@
 
             do_request("chats", "POST", `${api_url}/chats/start-search`, undefined, token).
             then((body) => {
-                document.getElementById("chat").hidden = false;
                 document.getElementById("started_search").hidden = true;
 
                 join_chat(body['chat_id']);
@@ -294,6 +296,45 @@
             do_request("chats", "POST", `${api_url}/chats/abort-search`, undefined, token);
         }
 
+        function get_saved_chats() {
+            let token = document.getElementById("token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            let saved_chats = document.getElementById("saved_chats");
+            saved_chats.innerHTML = "<b>Looking for saved chats...</b>";
+
+            do_request("chats", "GET", `${api_url}/chats/get-saved`, undefined, token).
+            then((body) => {
+                saved_chats.innerHTML = "";
+                for (const [chat_id, chat_info] of Object.entries(body)) {
+                    console.log(chat_info["title"]);
+
+                    let new_chat = document.createElement("li");
+
+                    let button = document.createElement("button");
+                    button.innerText = chat_info["title"];
+                    button.onclick = function () {
+                        join_chat(chat_id);
+                    }
+
+                    let chat_id_elem = document.createElement("i");
+                    let chat_id_node = document.createTextNode(` (${chat_id})`);
+                    chat_id_elem.appendChild(chat_id_node);
+
+                    new_chat.appendChild(button);
+                    new_chat.appendChild(chat_id_elem);
+
+                    saved_chats.appendChild(new_chat);
+                }
+                if (saved_chats.innerHTML === "") {
+                    saved_chats.innerHTML = "<b>No saved chats found</b>";
+                }
+            }, () => {});
+        }
+
         function join_chat(chat_id) {
             let token = document.getElementById("token").innerText;
             if (token.trim() === "") {
@@ -302,6 +343,7 @@
             }
 
             let chat_status = document.getElementById("chat_status");
+            document.getElementById("chat").hidden = false;
 
             chat_status.innerText = "Connecting...";
             ws = new WebSocket(`${api_url.replace("http", "ws")}/chat/${chat_id}`);
@@ -310,15 +352,24 @@
                 document.getElementById("all_user_info").hidden = true;
                 document.getElementById("chats").hidden = true;
                 chat_status.innerText = "Connected to the chat";
+                current_chat_id = chat_id;
                 ws.send(token);
             };
 
             ws.onmessage = (event) => {
-                chat_status.innerText = "Received " + event.type;
-                if (event.type === "message") {
-                    add_message("ANON", event.data);
-                }
-            };
+                JSON.parse(event.data).forEach((message) => {
+                    add_message(message["from"], message["text"]);
+                });
+
+                ws.onmessage = (event) => {
+                    chat_status.innerText = "Received " + event.type;
+                    if (event.type === "message") {
+                        add_message("ANON", event.data);
+                    }
+                };
+            }
+
+
 
             ws.onerror = (event) => {
                 console.log("WEBSOCKET ERROR")
@@ -328,6 +379,7 @@
 
             ws.onclose = (_event) => {
                 ws = null;
+                current_chat_id = null;
 
                 let chat_status = document.getElementById("chat_status");
                 let chat_messages = document.getElementById("chat_messages");
@@ -337,6 +389,7 @@
                 chat_messages.innerHTML = '';
                 your_message.value = "";
 
+                document.getElementById("chat_title").value = "";
                 document.getElementById("authentication").hidden = false;
                 document.getElementById("all_user_info").hidden = false;
                 document.getElementById("chats").hidden = false;
@@ -370,9 +423,39 @@
             document.getElementById("chat_status").innerText = "You left the chat";
         }
 
-        function clear_runtime() {
-            if (confirm("Do you really want to clear runtime (pending & ongoing chats)?")) {
-                do_request("clear_runtime", "GET", `${api_url}/clear/runtime`, undefined);
+        function save_chat() {
+            if (ws === null || current_chat_id === null) {
+                alert("Must be in chat!");
+                return;
+            }
+
+            let token = document.getElementById("token").innerText;
+            if (token.trim() === "") {
+                alert("Must provide token!");
+                return;
+            }
+
+            let title = document.getElementById("chat_title").value;
+
+            if (title.trim() === "") {
+                alert("Must specify chat title!");
+                return;
+            }
+
+            do_request("chats", "POST", `${api_url}/chat/${current_chat_id}/save`, {
+                "title": title,
+            }, token).
+            then((_body) => {
+                alert("Chat was saved!");
+            }).
+            catch(() => {
+                alert("Error saving chat!");
+            });
+        }
+
+        function clear_lobby() {
+            if (confirm("Do you really want to clear lobby?")) {
+                do_request("clear_lobby", "GET", `${api_url}/clear/lobby`, undefined);
             }
         }
 
@@ -391,8 +474,8 @@
         <summary>Administrative</summary>
         <ul>
             <li>
-                <button onclick="clear_runtime()">Clear runtime</button>
-                <div id="clear_runtime_req_resp"></div>
+                <button onclick="clear_lobby()">Clear lobby</button>
+                <div id="clear_lobby_req_resp"></div>
                 <br>
             </li>
             <li>
@@ -455,6 +538,10 @@
 
         <div id="start_search">
             <button onclick="start_search()">Start search</button>
+            <button onclick="get_saved_chats()">Get list of saved chats</button>
+            <br>
+            List of saved chats:
+            <ul id="saved_chats"></ul>
         </div>
 
         <div id="started_search" hidden>
@@ -468,12 +555,15 @@
         <h3>Chat</h3>
         <button onclick="leave_chat()">Leave chat</button>
         <br>
+        <label>Chat title: <input type="text" id="chat_title"></label>
+        <button onclick="save_chat()">Save chat</button>
+        <br>
         <label>Status:</label>
         <b id="chat_status">Not in chat</b><br>
         <br>
         <label>Messages:</label>
         <ul id="chat_messages"></ul>
-        <label>Your message: <input type="text" id="your_message"></label>
+        <label>Your message: <br> <textarea type="text" id="your_message"></textarea></label>
         <button onclick="send_message()">Send</button>
     </div>
 
